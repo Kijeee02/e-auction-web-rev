@@ -75,9 +75,9 @@ Platform lelang online modern untuk wilayah Jakarta, Bogor, Depok, Tangerang, da
 
 ### 1. Clone Repository
 
-```bash
-git clone <repository-url>
-cd e-auction-jabodetabek
+```bash[
+git clone https://github.com/RizqOsman/eauction-jabodetabek.git
+cd eauction-jabodetabek
 ```
 
 ### 2. Install Dependencies
