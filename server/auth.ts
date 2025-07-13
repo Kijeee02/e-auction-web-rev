@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config(); 
+
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
@@ -6,6 +9,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+
 
 declare global {
   namespace Express {
