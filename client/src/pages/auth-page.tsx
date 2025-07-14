@@ -81,7 +81,15 @@ export default function AuthPage() {
     try {
       const { confirmPassword, agreeToTerms, ...registerData } = data;
       await registerMutation.mutateAsync(registerData);
-      setLocation("/");
+
+      toast({
+        title: "Pendaftaran berhasil",
+        description: "Silakan login untuk melanjutkan.",
+      });
+
+      setActiveTab("login");
+      registerForm.reset(); // opsional: reset form
+
     } catch (error) {
       // Error handled in useAuth hook
     }
@@ -111,7 +119,7 @@ export default function AuthPage() {
                 <TabsTrigger value="login">Masuk</TabsTrigger>
                 <TabsTrigger value="register">Daftar</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="login">
                 <form onSubmit={loginForm.handleSubmit(onLogin)} className="space-y-4">
                   <div className="space-y-2">
@@ -127,7 +135,7 @@ export default function AuthPage() {
                       </p>
                     )}
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
                     <Input
@@ -153,9 +161,9 @@ export default function AuthPage() {
                     </Button>
                   </div>
 
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
+                  <Button
+                    type="submit"
+                    className="w-full"
                     disabled={loginMutation.isPending}
                   >
                     {loginMutation.isPending && (
@@ -271,9 +279,9 @@ export default function AuthPage() {
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    <Checkbox 
+                    <Checkbox
                       id="agreeToTerms"
-                     checked={registerForm.watch("agreeToTerms")}
+                      checked={registerForm.watch("agreeToTerms")}
                       onCheckedChange={(checked) => {
                         registerForm.setValue("agreeToTerms", checked as boolean);
                       }}
@@ -295,9 +303,9 @@ export default function AuthPage() {
                     </p>
                   )}
 
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
+                  <Button
+                    type="submit"
+                    className="w-full"
                     disabled={registerMutation.isPending}
                   >
                     {registerMutation.isPending && (

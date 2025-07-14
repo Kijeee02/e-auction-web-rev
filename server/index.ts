@@ -2,10 +2,14 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeDatabase } from "./db";
+import router from "./routes";
+
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+app.use(router);
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -40,7 +44,7 @@ app.use((req, res, next) => {
 (async () => {
   // Initialize SQLite database
   initializeDatabase();
-  
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -65,7 +69,7 @@ app.use((req, res, next) => {
   // It is the only port that is not firewalled.
   const port = 5000;
   server.listen(5000, "127.0.0.1", () => {
-  log("serving on http://127.0.0.1:5000");
-});
+    log("serving on http://127.0.0.1:5000");
+  });
 
 })();

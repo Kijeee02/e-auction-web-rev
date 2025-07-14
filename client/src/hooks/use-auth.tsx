@@ -20,8 +20,11 @@ type AuthContextType = {
 type LoginData = Pick<InsertUser, "username" | "password">;
 
 export const AuthContext = createContext<AuthContextType | null>(null);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+
+  // Cek apakah user sudah login (session/cookie/token masih berlaku)
   const {
     data: user,
     error,
@@ -31,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: getQueryFn({ on401: "returnNull" }),
   });
 
+  // LOGIN
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
       const res = await apiRequest("POST", "/api/login", credentials);
@@ -41,30 +45,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onError: (error: Error) => {
       toast({
-        title: "Login failed",
+        title: "Login gagal",
         description: error.message,
         variant: "destructive",
       });
     },
   });
 
+  // REGISTER (✅ tidak auto-login)
   const registerMutation = useMutation({
     mutationFn: async (credentials: InsertUser) => {
       const res = await apiRequest("POST", "/api/register", credentials);
       return await res.json();
     },
-    onSuccess: (user: SelectUser) => {
-      queryClient.setQueryData(["/api/user"], user);
-    },
+    // Tidak set user → agar tidak langsung login
     onError: (error: Error) => {
       toast({
-        title: "Registration failed",
+        title: "Pendaftaran gagal",
         description: error.message,
         variant: "destructive",
       });
     },
   });
 
+  // LOGOUT
   const logoutMutation = useMutation({
     mutationFn: async () => {
       await apiRequest("POST", "/api/logout");
@@ -74,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     onError: (error: Error) => {
       toast({
-        title: "Logout failed",
+        title: "Logout gagal",
         description: error.message,
         variant: "destructive",
       });

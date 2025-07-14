@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
+import { AdminRoute } from "./lib/admin-route";
+import AdminUsersPage from "@/pages/admin-users-page";
 import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
 import AuctionDetail from "@/pages/auction-detail";
@@ -19,7 +21,8 @@ function Router() {
       <ProtectedRoute path="/" component={HomePage} />
       <ProtectedRoute path="/auction/:id" component={AuctionDetail} />
       <ProtectedRoute path="/dashboard" component={UserDashboard} />
-      <ProtectedRoute path="/admin" component={AdminPanel} />
+      <AdminRoute path="/admin" component={AdminPanel} />
+      <AdminRoute path="/admin/users" component={AdminUsersPage} />
       <Route component={NotFound} />
     </Switch>
   );

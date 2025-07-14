@@ -4,6 +4,39 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { insertAuctionSchema, insertBidSchema, insertCategorySchema } from "@shared/schema";
 import { z } from "zod";
+import express, { Request, Response } from "express";
+import db from "./db";
+
+const router = express.Router();
+router.post("/api/auctions", async (req: Request, res: Response) => {
+  const { title, starting_price, end_time } = req.body;
+
+  if (!title || !starting_price || !end_time) {
+    return res.status(400).json({ message: "Semua field harus diisi" });
+  }
+
+  try {
+    const stmt = db.prepare(
+      `INSERT INTO auctions (title, starting_price, current_price, end_time, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    );
+
+    const result = stmt.run(
+      title,
+      starting_price,
+      starting_price,
+      end_time,
+      "active",
+      Date.now()
+    );
+
+    res.status(201).json({ message: "Lelang berhasil ditambahkan", id: result.lastInsertRowid });
+  } catch (err) {
+    console.error("Gagal menyimpan lelang:", err);
+    res.status(500).json({ message: "Gagal menyimpan lelang" });
+  }
+});
+export default router;
 
 export function registerRoutes(app: Express): Server {
   // Setup authentication routes
@@ -61,7 +94,7 @@ export function registerRoutes(app: Express): Server {
     try {
       const id = parseInt(req.params.id);
       const auction = await storage.getAuction(id);
-      
+
       if (!auction) {
         return res.status(404).json({ message: "Auction not found" });
       }
@@ -152,7 +185,7 @@ export function registerRoutes(app: Express): Server {
 
       const id = parseInt(req.params.id);
       const auction = await storage.endAuction(id);
-      
+
       if (!auction) {
         return res.status(404).json({ message: "Auction not found" });
       }
@@ -200,14 +233,16 @@ export function registerRoutes(app: Express): Server {
       }
 
       const bidData = insertBidSchema.parse({ ...req.body, auctionId });
-      
+
       // Validate bid amount
-      const minimumBid = parseFloat(auction.currentPrice) + parseFloat(auction.minimumIncrement);
-      if (parseFloat(bidData.amount) < minimumBid) {
-        return res.status(400).json({ 
-          message: `Bid must be at least Rp ${minimumBid.toLocaleString('id-ID')}` 
+      const minimumBid =
+        Number(auction.currentPrice) + Number(auction.minimumIncrement);
+      if (parseFloat(bidData.amount.toString()) < minimumBid) {
+        return res.status(400).json({
+          message: `Bid must be at least Rp ${minimumBid.toLocaleString("id-ID")}`
         });
       }
+
 
       const bid = await storage.placeBid({ ...bidData, bidderId: req.user.id });
       res.status(201).json(bid);
@@ -307,6 +342,7 @@ export function registerRoutes(app: Express): Server {
       res.status(500).json({ message: "Failed to fetch admin stats" });
     }
   });
+
 
   const httpServer = createServer(app);
   return httpServer;

@@ -12,15 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { 
-  Users, 
-  Gavel, 
-  CheckCircle, 
-  DollarSign, 
-  Plus, 
-  FileText, 
-  Edit, 
-  Trash2, 
+import {
+  Users,
+  Gavel,
+  CheckCircle,
+  DollarSign,
+  Plus,
+  FileText,
+  Edit,
+  Trash2,
   Eye,
   ChevronLeft,
   ChevronRight
@@ -32,6 +32,36 @@ export default function AdminPanel() {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newAuction, setNewAuction] = useState({
+    title: "",
+    startingPrice: "",
+    endTime: "",
+  });
+
+  // mutation untuk simpan lelang
+  const createAuctionMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/auctions", data);
+      return await res.json();
+    },
+    onSuccess: () => {
+      setShowAddModal(false);
+      setNewAuction({ title: "", startingPrice: "", endTime: "" });
+      queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
+      toast({
+        title: "Sukses",
+        description: "Lelang berhasil ditambahkan",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Gagal",
+        description: "Gagal menambahkan lelang",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Redirect if not admin
   if (user?.role !== "admin") {
@@ -48,9 +78,20 @@ export default function AdminPanel() {
     );
   }
 
-  const { data: adminStats } = useQuery({
+  type AdminStats = {
+    totalUsers: number;
+    completedTransactions: number;
+  };
+
+  const { data: adminStats } = useQuery<AdminStats>({
     queryKey: ["/api/admin/stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/stats");
+      if (!res.ok) throw new Error("Gagal mengambil statistik admin");
+      return await res.json();
+    },
   });
+
 
   const { data: auctions = [], isLoading } = useQuery<AuctionWithDetails[]>({
     queryKey: ["/api/auctions"],
@@ -69,7 +110,7 @@ export default function AdminPanel() {
     },
     onError: () => {
       toast({
-        title: "Error", 
+        title: "Error",
         description: "Failed to delete auction",
         variant: "destructive",
       });
@@ -90,7 +131,7 @@ export default function AdminPanel() {
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to end auction", 
+        description: "Failed to end auction",
         variant: "destructive",
       });
     },
@@ -98,7 +139,7 @@ export default function AdminPanel() {
 
   const filteredAuctions = auctions.filter(auction => {
     const matchesStatus = statusFilter === "all" || auction.status === statusFilter;
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       auction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       auction.seller.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       auction.seller.lastName.toLowerCase().includes(searchQuery.toLowerCase());
@@ -108,7 +149,7 @@ export default function AdminPanel() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
@@ -197,7 +238,7 @@ export default function AdminPanel() {
                 {/* Action Bar */}
                 <div className="flex justify-between items-center">
                   <div className="flex space-x-3">
-                    <Button>
+                    <Button onClick={() => setShowAddModal(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Tambah Lelang
                     </Button>
@@ -206,7 +247,7 @@ export default function AdminPanel() {
                       Export Data
                     </Button>
                   </div>
-                  
+
                   <div className="flex space-x-3">
                     <Select value={statusFilter} onValueChange={setStatusFilter}>
                       <SelectTrigger className="w-40">
@@ -283,18 +324,18 @@ export default function AdminPanel() {
                             </TableCell>
                             <TableCell>
                               <span className="font-medium text-gray-900">
-                                Rp {parseFloat(auction.startingPrice).toLocaleString('id-ID')}
+                                Rp {auction.startingPrice.toLocaleString('id-ID')}
                               </span>
                             </TableCell>
                             <TableCell>
                               <span className="font-bold text-primary">
-                                Rp {parseFloat(auction.currentPrice).toLocaleString('id-ID')}
+                                Rp {auction.startingPrice.toLocaleString('id-ID')}
                               </span>
                             </TableCell>
                             <TableCell>
                               <Badge className={`status-${auction.status}`}>
-                                {auction.status === "active" ? "Aktif" : 
-                                 auction.status === "ended" ? "Berakhir" : "Dibatalkan"}
+                                {auction.status === "active" ? "Aktif" :
+                                  auction.status === "ended" ? "Berakhir" : "Dibatalkan"}
                               </Badge>
                             </TableCell>
                             <TableCell>
@@ -311,8 +352,8 @@ export default function AdminPanel() {
                                   <Edit className="h-4 w-4" />
                                 </Button>
                                 {auction.status === "active" && (
-                                  <Button 
-                                    variant="ghost" 
+                                  <Button
+                                    variant="ghost"
                                     size="sm"
                                     onClick={() => endAuctionMutation.mutate(auction.id)}
                                     disabled={endAuctionMutation.isPending}
@@ -320,8 +361,8 @@ export default function AdminPanel() {
                                     End
                                   </Button>
                                 )}
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
                                   onClick={() => deleteAuctionMutation.mutate(auction.id)}
                                   disabled={deleteAuctionMutation.isPending}
@@ -387,6 +428,58 @@ export default function AdminPanel() {
             </CardContent>
           </Card>
         </Tabs>
+
+        {showAddModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded shadow w-full max-w-md">
+              <h2 className="text-lg font-bold mb-4">Tambah Lelang</h2>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  createAuctionMutation.mutate({
+                    title: newAuction.title,
+                    starting_price: parseFloat(newAuction.startingPrice),
+                    end_time: newAuction.endTime,
+                  });
+                }}
+                className="space-y-4"
+              >
+                <Input
+                  placeholder="Judul Produk"
+                  value={newAuction.title}
+                  onChange={(e) =>
+                    setNewAuction({ ...newAuction, title: e.target.value })
+                  }
+                />
+                <Input
+                  placeholder="Harga Awal"
+                  type="number"
+                  value={newAuction.startingPrice}
+                  onChange={(e) =>
+                    setNewAuction({ ...newAuction, startingPrice: e.target.value })
+                  }
+                />
+                <Input
+                  placeholder="Waktu Berakhir"
+                  type="datetime-local"
+                  value={newAuction.endTime}
+                  onChange={(e) =>
+                    setNewAuction({ ...newAuction, endTime: e.target.value })
+                  }
+                />
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                    Batal
+                  </Button>
+                  <Button type="submit" disabled={createAuctionMutation.isPending}>
+                    Simpan
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
