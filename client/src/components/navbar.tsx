@@ -4,12 +4,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Search, Bell, ChevronDown, User, Settings, LogOut, Gavel, Shield } from "lucide-react";
@@ -49,16 +49,16 @@ export default function Navbar() {
               <div className="flex items-center">
                 <Gavel className="h-8 w-8 text-primary mr-2" />
                 <div>
-                  <h1 className="text-2xl font-bold text-primary">e-auction</h1>
+                  <h1 className="text-2xl font-bold text-primary">3D Auctions</h1>
                   <p className="text-xs text-secondary -mt-1">Jabodetabek</p>
                 </div>
               </div>
             </Link>
-            
+
             <div className="hidden md:flex space-x-6">
               <Link href="/">
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   className={`text-sm font-medium ${location === '/' ? 'text-primary' : 'text-gray-600 hover:text-primary'}`}
                 >
                   Beranda
@@ -77,7 +77,7 @@ export default function Navbar() {
               </Button>
             </div>
           </div>
-          
+
           {/* Search and User Actions */}
           <div className="flex items-center space-x-4">
             {/* Search Bar */}
@@ -93,7 +93,7 @@ export default function Navbar() {
                 />
               </form>
             </div>
-            
+
             {user ? (
               // Authenticated User Menu
               <div className="flex items-center space-x-4">
@@ -104,7 +104,7 @@ export default function Navbar() {
                     3
                   </Badge>
                 </Button>
-                
+
                 {/* User Dropdown */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -140,7 +140,7 @@ export default function Navbar() {
                       Pengaturan
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem 
+                    <DropdownMenuItem
                       onClick={handleLogout}
                       disabled={logoutMutation.isPending}
                       className="text-destructive cursor-pointer"

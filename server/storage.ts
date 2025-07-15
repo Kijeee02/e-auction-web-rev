@@ -1,10 +1,10 @@
-import { 
-  users, 
-  auctions, 
-  bids, 
-  categories, 
+import {
+  users,
+  auctions,
+  bids,
+  categories,
   watchlist,
-  type User, 
+  type User,
   type InsertUser,
   type Auction,
   type InsertAuction,
@@ -16,7 +16,7 @@ import {
   type UserStats
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lte, count, sql } from "drizzle-orm";
+import { eq, desc, and, gte, count, sql } from "drizzle-orm";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -39,11 +39,10 @@ export interface IStorage {
   getAuctions(filters?: {
     status?: string;
     categoryId?: number;
-    sellerId?: number;
     search?: string;
   }): Promise<AuctionWithDetails[]>;
   getAuction(id: number): Promise<AuctionWithDetails | undefined>;
-  createAuction(auction: InsertAuction, sellerId: number): Promise<Auction>;
+  createAuction(auction: InsertAuction): Promise<Auction>;
   updateAuction(id: number, updates: Partial<Auction>): Promise<Auction | undefined>;
   deleteAuction(id: number): Promise<boolean>;
   endAuction(id: number): Promise<Auction | undefined>;
@@ -106,8 +105,7 @@ export class DatabaseStorage implements IStorage {
 
   async getUserStats(userId: number): Promise<UserStats> {
     const now = new Date();
-    
-    // Get active bids count
+
     const activeBidsResult = await db
       .select({ count: count() })
       .from(bids)
@@ -118,26 +116,20 @@ export class DatabaseStorage implements IStorage {
         gte(auctions.endTime, now)
       ));
 
-    // Get won auctions count
     const wonAuctionsResult = await db
       .select({ count: count() })
       .from(auctions)
       .where(eq(auctions.winnerId, userId));
 
-    // Get watchlist count
     const watchlistResult = await db
       .select({ count: count() })
       .from(watchlist)
       .where(eq(watchlist.userId, userId));
 
-    // Get user rating
-    const user = await this.getUser(userId);
-
     return {
       activeBids: activeBidsResult[0]?.count || 0,
       wonAuctions: wonAuctionsResult[0]?.count || 0,
-      watchlistCount: watchlistResult[0]?.count || 0,
-      rating: user?.rating || "0.00",
+      watchlistCount: watchlistResult[0]?.count || 0
     };
   }
 
@@ -156,30 +148,32 @@ export class DatabaseStorage implements IStorage {
   async getAuctions(filters?: {
     status?: string;
     categoryId?: number;
-    sellerId?: number;
     search?: string;
   }): Promise<AuctionWithDetails[]> {
+    const whereClauses = [];
+    if (filters?.status) {
+      whereClauses.push(eq(auctions.status, filters.status));
+    }
+    if (filters?.categoryId) {
+      whereClauses.push(eq(auctions.categoryId, filters.categoryId));
+    }
+    if (filters?.search) {
+      whereClauses.push(sql`title LIKE '%' || ${filters.search} || '%'`);
+    }
+
     let query = db
       .select({
         auction: auctions,
-        seller: users,
         category: categories,
       })
       .from(auctions)
-      .innerJoin(users, eq(auctions.sellerId, users.id))
       .innerJoin(categories, eq(auctions.categoryId, categories.id));
 
-    if (filters?.status) {
-      query = query.where(eq(auctions.status, filters.status));
-    }
-    if (filters?.categoryId) {
-      query = query.where(eq(auctions.categoryId, filters.categoryId));
-    }
-    if (filters?.sellerId) {
-      query = query.where(eq(auctions.sellerId, filters.sellerId));
-    }
-
-    const results = await query.orderBy(desc(auctions.createdAt));
+    const results = await (
+      whereClauses.length > 0
+        ? query.where(and(...whereClauses)).orderBy(desc(auctions.createdAt))
+        : query.orderBy(desc(auctions.createdAt))
+    );
 
     // Get bids for each auction
     const auctionsWithBids = await Promise.all(
@@ -187,7 +181,6 @@ export class DatabaseStorage implements IStorage {
         const auctionBids = await this.getBidsForAuction(result.auction.id);
         return {
           ...result.auction,
-          seller: result.seller,
           category: result.category,
           bids: auctionBids,
           _count: { bids: auctionBids.length },
@@ -202,11 +195,9 @@ export class DatabaseStorage implements IStorage {
     const [result] = await db
       .select({
         auction: auctions,
-        seller: users,
         category: categories,
       })
       .from(auctions)
-      .innerJoin(users, eq(auctions.sellerId, users.id))
       .innerJoin(categories, eq(auctions.categoryId, categories.id))
       .where(eq(auctions.id, id));
 
@@ -216,26 +207,66 @@ export class DatabaseStorage implements IStorage {
 
     return {
       ...result.auction,
-      seller: result.seller,
       category: result.category,
       bids: auctionBids,
       _count: { bids: auctionBids.length },
     };
   }
 
-  async createAuction(auction: InsertAuction, sellerId: number): Promise<Auction> {
-    const [newAuction] = await db
-      .insert(auctions)
-      .values({
-        ...auction,
-        sellerId,
-        currentPrice: auction.startingPrice,
-      })
-      .returning();
-    return newAuction;
+  async createAuction(auction: InsertAuction): Promise<Auction> {
+    try {
+      // PATCH: Pastikan semua field waktu berupa Date!
+      if (auction.endTime && typeof auction.endTime === "number") {
+        auction.endTime = new Date(auction.endTime * 1000);
+      } else if (typeof auction.endTime === "string") {
+        auction.endTime = new Date(auction.endTime);
+      }
+      if (auction.startTime && typeof auction.startTime === "number") {
+        auction.startTime = new Date(auction.startTime * 1000);
+      } else if (typeof auction.startTime === "string") {
+        auction.startTime = new Date(auction.startTime);
+      }
+      if (auction.createdAt && typeof auction.createdAt === "number") {
+        auction.createdAt = new Date(auction.createdAt * 1000);
+      } else if (typeof auction.createdAt === "string") {
+        auction.createdAt = new Date(auction.createdAt);
+      }
+      if (!auction.startTime) {
+        auction.startTime = new Date();
+      }
+      if (!auction.createdAt) {
+        auction.createdAt = new Date();
+      }
+      if (!auction.currentPrice) {
+        auction.currentPrice = auction.startingPrice;
+      }
+
+      const [created] = await db.insert(auctions).values(auction).returning();
+      return created;
+    } catch (err) {
+      console.error("Failed to create auction:", err, auction);
+      throw err;
+    }
   }
 
   async updateAuction(id: number, updates: Partial<Auction>): Promise<Auction | undefined> {
+    // PATCH: pastikan waktu tetap Date jika ada
+    if (updates.endTime && typeof updates.endTime === "number") {
+      updates.endTime = new Date(updates.endTime * 1000);
+    } else if (typeof updates.endTime === "string") {
+      updates.endTime = new Date(updates.endTime);
+    }
+    if (updates.startTime && typeof updates.startTime === "number") {
+      updates.startTime = new Date(updates.startTime * 1000);
+    } else if (typeof updates.startTime === "string") {
+      updates.startTime = new Date(updates.startTime);
+    }
+    if (updates.createdAt && typeof updates.createdAt === "number") {
+      updates.createdAt = new Date(updates.createdAt * 1000);
+    } else if (typeof updates.createdAt === "string") {
+      updates.createdAt = new Date(updates.createdAt);
+    }
+
     const [auction] = await db
       .update(auctions)
       .set(updates)
@@ -245,8 +276,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteAuction(id: number): Promise<boolean> {
-    const result = await db.delete(auctions).where(eq(auctions.id, id));
-    return result.rowCount > 0;
+    // PATCH: cek dengan returning().length
+    const result = await db.delete(auctions).where(eq(auctions.id, id)).returning();
+    return result.length > 0;
   }
 
   async endAuction(id: number): Promise<Auction | undefined> {
@@ -255,13 +287,13 @@ export class DatabaseStorage implements IStorage {
 
     const [auction] = await db
       .update(auctions)
-      .set({ 
+      .set({
         status: "ended",
-        winnerId: winnerId 
+        winnerId: winnerId
       })
       .where(eq(auctions.id, id))
       .returning();
-    
+
     return auction || undefined;
   }
 
@@ -299,26 +331,37 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+  // Hapus seluruh fungsi placeBid lama, ganti dengan ini:
+
   async placeBid(bid: InsertBid & { bidderId: number }): Promise<Bid> {
-    // Start transaction to ensure atomicity
-    const result = await db.transaction(async (tx) => {
-      // Place the bid
-      const [newBid] = await tx
-        .insert(bids)
-        .values(bid)
-        .returning();
+    // Pastikan createdAt selalu ada
+    const toInsert = {
+      ...bid,
+      createdAt: bid.createdAt ?? new Date(),
+    };
 
-      // Update auction current price
-      await tx
-        .update(auctions)
-        .set({ currentPrice: bid.amount })
-        .where(eq(auctions.id, bid.auctionId));
+    // 1) Insert bid
+    const [created] = await db
+      .insert(bids)
+      .values(toInsert)
+      .returning();
 
-      return newBid;
-    });
+    if (!created) {
+      throw new Error("Failed to create bid");
+    }
 
-    return result;
+    // 2) Update auction current price
+    await db
+      .update(auctions)
+      .set({ currentPrice: bid.amount })
+      .where(eq(auctions.id, bid.auctionId))
+      // di SQLite returning() tidak selalu didukung, jadi kita abaikan hasilnya
+      .execute();
+
+    return created;
   }
+
+
 
   async getHighestBid(auctionId: number): Promise<Bid | undefined> {
     const [bid] = await db
@@ -327,7 +370,7 @@ export class DatabaseStorage implements IStorage {
       .where(eq(bids.auctionId, auctionId))
       .orderBy(desc(bids.amount))
       .limit(1);
-    
+
     return bid || undefined;
   }
 
@@ -351,23 +394,19 @@ export class DatabaseStorage implements IStorage {
     const results = await db
       .select({
         auction: auctions,
-        seller: users,
         category: categories,
       })
       .from(watchlist)
       .innerJoin(auctions, eq(watchlist.auctionId, auctions.id))
-      .innerJoin(users, eq(auctions.sellerId, users.id))
       .innerJoin(categories, eq(auctions.categoryId, categories.id))
       .where(eq(watchlist.userId, userId))
       .orderBy(desc(watchlist.createdAt));
 
-    // Get bids for each auction
     const auctionsWithBids = await Promise.all(
       results.map(async (result) => {
         const auctionBids = await this.getBidsForAuction(result.auction.id);
         return {
           ...result.auction,
-          seller: result.seller,
           category: result.category,
           bids: auctionBids,
           _count: { bids: auctionBids.length },

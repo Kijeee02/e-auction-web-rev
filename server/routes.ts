@@ -5,37 +5,11 @@ import { setupAuth } from "./auth";
 import { insertAuctionSchema, insertBidSchema, insertCategorySchema } from "@shared/schema";
 import { z } from "zod";
 import express, { Request, Response } from "express";
-import db from "./db";
+import { db } from "./db";
+import { auctions } from "@shared/schema";
+
 
 const router = express.Router();
-router.post("/api/auctions", async (req: Request, res: Response) => {
-  const { title, starting_price, end_time } = req.body;
-
-  if (!title || !starting_price || !end_time) {
-    return res.status(400).json({ message: "Semua field harus diisi" });
-  }
-
-  try {
-    const stmt = db.prepare(
-      `INSERT INTO auctions (title, starting_price, current_price, end_time, status, created_at)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    );
-
-    const result = stmt.run(
-      title,
-      starting_price,
-      starting_price,
-      end_time,
-      "active",
-      Date.now()
-    );
-
-    res.status(201).json({ message: "Lelang berhasil ditambahkan", id: result.lastInsertRowid });
-  } catch (err) {
-    console.error("Gagal menyimpan lelang:", err);
-    res.status(500).json({ message: "Gagal menyimpan lelang" });
-  }
-});
 export default router;
 
 export function registerRoutes(app: Express): Server {
@@ -79,7 +53,6 @@ export function registerRoutes(app: Express): Server {
       const filters = {
         status: req.query.status as string,
         categoryId: req.query.categoryId ? parseInt(req.query.categoryId as string) : undefined,
-        sellerId: req.query.sellerId ? parseInt(req.query.sellerId as string) : undefined,
         search: req.query.search as string,
       };
 
@@ -107,20 +80,25 @@ export function registerRoutes(app: Express): Server {
 
   app.post("/api/auctions", async (req, res) => {
     try {
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "Authentication required" });
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
       }
 
       const auctionData = insertAuctionSchema.parse(req.body);
-      const auction = await storage.createAuction(auctionData, req.user.id);
+      const auction = await storage.createAuction(auctionData);
       res.status(201).json(auction);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid auction data", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to create auction" });
+      res.status(500).json({
+        message: "Failed to create auction",
+        error: typeof error === "object" && error !== null && "message" in error ? (error as { message: string }).message : String(error)
+      });
     }
   });
+
+
 
   app.put("/api/auctions/:id", async (req, res) => {
     try {
@@ -136,7 +114,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Check if user owns the auction or is admin
-      if (auction.sellerId !== req.user.id && req.user.role !== "admin") {
+      if (!auction || req.user.role !== "admin") {
         return res.status(403).json({ message: "Access denied" });
       }
 
@@ -162,13 +140,13 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Check if user owns the auction or is admin
-      if (auction.sellerId !== req.user.id && req.user.role !== "admin") {
+      if (!auction || req.user.role !== "admin") {
         return res.status(403).json({ message: "Access denied" });
       }
 
       const deleted = await storage.deleteAuction(id);
       if (deleted) {
-        res.json({ message: "Auction deleted successfully" });
+        res.status(200).json({ message: "Auction deleted" });
       } else {
         res.status(404).json({ message: "Auction not found" });
       }
@@ -190,26 +168,31 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Auction not found" });
       }
 
-      res.json(auction);
+      res.status(200).json({
+        message: "Auction ended successfully",
+        auction,
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to end auction" });
     }
   });
 
   // Bids routes
+
   app.get("/api/auctions/:id/bids", async (req, res) => {
     try {
       const auctionId = parseInt(req.params.id);
       const bids = await storage.getBidsForAuction(auctionId);
       res.json(bids);
     } catch (error) {
+      console.error("Failed to fetch bids:", error);
       res.status(500).json({ message: "Failed to fetch bids" });
     }
   });
 
   app.post("/api/auctions/:id/bids", async (req, res) => {
     try {
-      if (!req.isAuthenticated()) {
+      if (!req.isAuthenticated?.() || !req.user?.id) {
         return res.status(401).json({ message: "Authentication required" });
       }
 
@@ -228,31 +211,69 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: "Auction has ended" });
       }
 
-      if (auction.sellerId === req.user.id) {
-        return res.status(400).json({ message: "Cannot bid on your own auction" });
-      }
+      // DEBUG: Log body yang diterima
+      console.log("POST /bids req.body:", req.body);
 
-      const bidData = insertBidSchema.parse({ ...req.body, auctionId });
-
-      // Validate bid amount
-      const minimumBid =
-        Number(auction.currentPrice) + Number(auction.minimumIncrement);
-      if (parseFloat(bidData.amount.toString()) < minimumBid) {
+      let bidData;
+      try {
+        // PATCH: Pastikan amount number, createdAt boleh undefined (storage akan isi otomatis)
+        bidData = insertBidSchema.parse({
+          ...req.body,
+          auctionId,
+          amount: Number(req.body.amount),
+        });
+      } catch (err) {
+        console.error("Zod error in bidData:", err);
         return res.status(400).json({
-          message: `Bid must be at least Rp ${minimumBid.toLocaleString("id-ID")}`
+          message: "Invalid bid data",
+          errors: err instanceof z.ZodError ? err.errors : (typeof err === "object" && err !== null && "message" in err ? (err as { message: string }).message : String(err))
         });
       }
 
+      // Validate bid amount
+      const minimumBid = Number(auction.currentPrice) + Number(auction.minimumIncrement);
+      if (Number(bidData.amount) < minimumBid) {
+        return res.status(400).json({
+          message: `Bid must be at least Rp ${minimumBid.toLocaleString("id-ID")}`,
+        });
+      }
 
-      const bid = await storage.placeBid({ ...bidData, bidderId: req.user.id });
+      // Simpan bid ke DB
+      let bid;
+      try {
+        bid = await storage.placeBid({
+          ...bidData,
+          bidderId: req.user.id,
+        });
+        // Log hasil simpan bid
+        console.log("Bid created:", bid);
+      } catch (err) {
+        // PATCH: Log full error dari storage
+        console.error("Error from storage.placeBid:", err);
+        return res.status(500).json({ message: "Failed to save bid", error: typeof err === "object" && err !== null && "message" in err ? (err as { message: string }).message : String(err) });
+      }
+
+      // Pastikan tidak undefined/null
+      if (!bid) {
+        console.error("Bid result undefined/null!");
+        return res.status(500).json({ message: "Bid was not created." });
+      }
+
       res.status(201).json(bid);
+
     } catch (error) {
+      console.error("Failed to place bid:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid bid data", errors: error.errors });
       }
-      res.status(500).json({ message: "Failed to place bid" });
+      res.status(500).json({
+        message: "Failed to place bid",
+        error: typeof error === "object" && error !== null && "message" in error ? (error as { message: string }).message : String(error)
+      });
     }
   });
+
+
 
   // User routes
   app.get("/api/user/stats", async (req, res) => {

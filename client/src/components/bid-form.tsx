@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,19 +16,23 @@ interface BidFormProps {
 export default function BidForm({ auctionId, minimumBid, minimumIncrement, onBidPlaced }: BidFormProps) {
   const [bidAmount, setBidAmount] = useState<string>("");
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const placeBidMutation = useMutation({
     mutationFn: async (amount: number) => {
       return apiRequest("POST", `/api/auctions/${auctionId}/bids`, {
-        amount: amount.toString(),
+        amount: amount,
       });
     },
+
     onSuccess: () => {
       toast({
         title: "Penawaran berhasil!",
         description: "Penawaran Anda telah ditempatkan.",
       });
       setBidAmount("");
+      queryClient.invalidateQueries({ queryKey: ["/api/auctions", auctionId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auctions", auctionId, "bids"] });
       onBidPlaced?.();
     },
     onError: (error: any) => {
@@ -105,8 +109,8 @@ export default function BidForm({ auctionId, minimumBid, minimumIncrement, onBid
           className="flex-1"
           disabled={placeBidMutation.isPending}
         />
-        <Button 
-          type="submit" 
+        <Button
+          type="submit"
           className="bg-primary text-white hover:bg-blue-700 font-semibold px-6"
           disabled={placeBidMutation.isPending || !bidAmount}
         >

@@ -13,11 +13,16 @@ import AuctionDetail from "@/pages/auction-detail";
 import UserDashboard from "@/pages/user-dashboard";
 import AdminPanel from "@/pages/admin-panel";
 import NotFound from "@/pages/not-found";
+import EditAuctionPage from "@/pages/EditAuctionPage";
+
 
 function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      <Route path="/auction/:id" component={AuctionDetail} />
+      <AdminRoute path="/admin" component={AdminPanel} />
+      <AdminRoute path="/admin/edit-auction/:id" component={EditAuctionPage} />
       <ProtectedRoute path="/" component={HomePage} />
       <ProtectedRoute path="/auction/:id" component={AuctionDetail} />
       <ProtectedRoute path="/dashboard" component={UserDashboard} />

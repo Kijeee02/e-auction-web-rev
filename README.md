@@ -191,7 +191,6 @@ CREATE TABLE auctions (
   status TEXT NOT NULL DEFAULT 'active',
   start_time INTEGER NOT NULL,
   end_time INTEGER NOT NULL,
-  seller_id INTEGER NOT NULL REFERENCES users(id),
   category_id INTEGER NOT NULL REFERENCES categories(id),
   winner_id INTEGER REFERENCES users(id),
   created_at INTEGER NOT NULL

@@ -38,24 +38,22 @@ export function initializeDatabase() {
       );
 
       CREATE TABLE IF NOT EXISTS auctions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        description TEXT NOT NULL,
-        starting_price REAL NOT NULL,
-        current_price REAL NOT NULL,
-        minimum_increment REAL NOT NULL DEFAULT 50000,
-        condition TEXT NOT NULL,
-        location TEXT NOT NULL,
-        image_url TEXT,
-        status TEXT NOT NULL DEFAULT 'active',
-        start_time INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-        end_time INTEGER NOT NULL,
-        seller_id INTEGER NOT NULL REFERENCES users(id),
-        category_id INTEGER NOT NULL REFERENCES categories(id),
-        winner_id INTEGER REFERENCES users(id),
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          description TEXT NOT NULL,
+          starting_price REAL NOT NULL,
+          current_price REAL NOT NULL,
+          minimum_increment REAL NOT NULL DEFAULT 50000,
+          condition TEXT NOT NULL,
+          location TEXT NOT NULL,
+          image_url TEXT,
+          status TEXT NOT NULL DEFAULT 'active',
+          start_time INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+          end_time INTEGER NOT NULL,
+          category_id INTEGER NOT NULL REFERENCES categories(id),
+          winner_id INTEGER REFERENCES users(id),
+          created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
-
       CREATE TABLE IF NOT EXISTS bids (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         amount REAL NOT NULL,

@@ -38,7 +38,6 @@ export const auctions = sqliteTable("auctions", {
   status: text("status").notNull().default("active"), // "active", "ended", "cancelled"
   startTime: integer("start_time", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   endTime: integer("end_time", { mode: "timestamp" }).notNull(),
-  sellerId: integer("seller_id").references(() => users.id).notNull(),
   categoryId: integer("category_id").references(() => categories.id).notNull(),
   winnerId: integer("winner_id").references(() => users.id),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
@@ -61,18 +60,12 @@ export const watchlist = sqliteTable("watchlist", {
 
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
-  auctions: many(auctions, { relationName: "seller" }),
   bids: many(bids),
   wonAuctions: many(auctions, { relationName: "winner" }),
   watchlist: many(watchlist),
 }));
 
 export const auctionsRelations = relations(auctions, ({ one, many }) => ({
-  seller: one(users, {
-    fields: [auctions.sellerId],
-    references: [users.id],
-    relationName: "seller",
-  }),
   winner: one(users, {
     fields: [auctions.winnerId],
     references: [users.id],
@@ -121,20 +114,65 @@ export const insertUserSchema = createInsertSchema(users).omit({
   rating: true,
 });
 
-export const insertAuctionSchema = createInsertSchema(auctions).omit({
-  id: true,
-  createdAt: true,
-  sellerId: true,
-  winnerId: true,
-  status: true,
-  currentPrice: true,
-});
+export const insertAuctionSchema = createInsertSchema(auctions)
+  .omit({
+    id: true,
+    winnerId: true,
+    status: true,
+  })
+  .extend({
+    endTime: z.preprocess((arg) => {
+      if (arg instanceof Date) return arg;
+      if (typeof arg === "number" && arg < 1e12) return new Date(arg * 1000);
+      if (typeof arg === "number") return new Date(arg);
+      if (typeof arg === "string") return new Date(arg);
+      return arg;
+    }, z.date().refine(d => d > new Date(), "Waktu berakhir harus di masa depan")),
+    startTime: z.preprocess((arg) => {
+      if (arg instanceof Date) return arg;
+      if (typeof arg === "number" && arg < 1e12) return new Date(arg * 1000);
+      if (typeof arg === "number") return new Date(arg);
+      if (typeof arg === "string") return new Date(arg);
+      return arg;
+    }, z.date().optional()),
+    createdAt: z.preprocess((arg) => {
+      if (arg instanceof Date) return arg;
+      if (typeof arg === "number" && arg < 1e12) return new Date(arg * 1000);
+      if (typeof arg === "number") return new Date(arg);
+      if (typeof arg === "string") return new Date(arg);
+      return arg;
+    }, z.date().optional()),
+    // ...field lain tetap seperti tadi
+    startingPrice: z.number().min(0, "Harga awal harus lebih dari 0"),
+    currentPrice: z.number().default(0),
+    condition: z.enum(["new", "like_new", "good", "fair"]),
+    imageUrl: z.string().optional(),
+    minimumIncrement: z.number().default(50000),
+    title: z.string(),
+    description: z.string(),
+    location: z.string(),
+    categoryId: z.number(),
+  });
+
+
+
 
 export const insertBidSchema = createInsertSchema(bids).omit({
   id: true,
   createdAt: true,
   bidderId: true,
+}).extend({
+  createdAt: z.preprocess(
+    (arg) => {
+      if (arg instanceof Date) return arg;
+      if (typeof arg === "number" && arg < 1e12) return new Date(arg * 1000);
+      if (typeof arg === "number") return new Date(arg);
+      if (typeof arg === "string") return new Date(arg);
+      return arg;
+    }, z.date().optional()
+  )
 });
+
 
 export const insertCategorySchema = createInsertSchema(categories).omit({
   id: true,
@@ -154,7 +192,6 @@ export type Watchlist = typeof watchlist.$inferSelect;
 
 // Extended types with relations
 export type AuctionWithDetails = Auction & {
-  seller: User;
   category: Category;
   bids: (Bid & { bidder: User })[];
   _count?: { bids: number };
@@ -164,5 +201,4 @@ export type UserStats = {
   activeBids: number;
   wonAuctions: number;
   watchlistCount: number;
-  rating: string;
 };

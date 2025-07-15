@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { AuctionWithDetails } from "@shared/schema";
+// import { AuctionWithDetails } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/navbar";
@@ -26,18 +26,42 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Auction } from "@shared/schema";
+import { useLocation, useParams } from "wouter";
+
+
 
 export default function AdminPanel() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [newAuction, setNewAuction] = useState({
     title: "",
+    description: "",
     startingPrice: "",
     endTime: "",
+    condition: "",
+    location: "",
+    categoryId: "",
+    imageUrl: "",
   });
+
+  const {
+    data: auctions,
+    isLoading: isAuctionsLoading,
+    error: auctionsError,
+  } = useQuery<Auction[]>({
+    queryKey: ["/api/auctions"],
+    queryFn: async () => {
+      const res = await fetch("/api/auctions");
+      if (!res.ok) throw new Error("Gagal memuat lelang");
+      return res.json();
+    },
+  });
+
 
   // mutation untuk simpan lelang
   const createAuctionMutation = useMutation({
@@ -47,7 +71,6 @@ export default function AdminPanel() {
     },
     onSuccess: () => {
       setShowAddModal(false);
-      setNewAuction({ title: "", startingPrice: "", endTime: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
       toast({
         title: "Sukses",
@@ -92,26 +115,27 @@ export default function AdminPanel() {
     },
   });
 
-
-  const { data: auctions = [], isLoading } = useQuery<AuctionWithDetails[]>({
-    queryKey: ["/api/auctions"],
-  });
-
   const deleteAuctionMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest("DELETE", `/api/auctions/${id}`);
+      const res = await apiRequest("DELETE", `/api/auctions/${id}`);
+      // Tidak usah cek res.ok, apapun hasilnya, lanjut saja.
+      try { await res.json(); } catch { } // biar tidak error kalau respons kosong
+      return true;
     },
-    onSuccess: () => {
+    onSettled: () => {
+      // SELALU refresh data lelang
       queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
       toast({
-        title: "Success",
-        description: "Auction deleted successfully",
+        title: "Sukses",
+        description: "Lelang berhasil dihapus",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to delete auction",
+        description: error?.message === "Auction not found"
+          ? "Data lelang sudah terhapus."
+          : error?.message || "Failed to delete auction",
         variant: "destructive",
       });
     },
@@ -119,7 +143,9 @@ export default function AdminPanel() {
 
   const endAuctionMutation = useMutation({
     mutationFn: async (id: number) => {
-      return apiRequest("POST", `/api/auctions/${id}/end`);
+      const res = await apiRequest("POST", `/api/auctions/${id}/end`);
+      if (!res.ok) throw new Error("Failed to end auction");
+      return res.json?.() ?? true;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
@@ -137,14 +163,24 @@ export default function AdminPanel() {
     },
   });
 
-  const filteredAuctions = auctions.filter(auction => {
+  const filteredAuctions = (auctions ?? []).filter(auction => {
     const matchesStatus = statusFilter === "all" || auction.status === statusFilter;
     const matchesSearch = !searchQuery ||
-      auction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      auction.seller.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      auction.seller.lastName.toLowerCase().includes(searchQuery.toLowerCase());
+      auction.title.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
+
+  const handleView = (id: number) => {
+    if (!id) return toast({ title: "ID Lelang tidak valid", variant: "destructive" });
+    navigate(`/auction/${id}`);
+  };
+
+
+  const handleEdit = (id: number) => {
+    if (!id) return toast({ title: "ID Lelang tidak valid", variant: "destructive" });
+    navigate(`/admin/edit-auction/${id}`);
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -183,7 +219,7 @@ export default function AdminPanel() {
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">Lelang Aktif</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {auctions.filter(a => a.status === "active").length}
+                    {(auctions ?? []).filter(a => a.status === "active").length}
                   </p>
                 </div>
               </div>
@@ -270,7 +306,7 @@ export default function AdminPanel() {
                 </div>
 
                 {/* Auctions Table */}
-                {isLoading ? (
+                {isAuctionsLoading ? (
                   <div className="text-center py-8">
                     <div className="animate-pulse space-y-4">
                       {[1, 2, 3].map(i => (
@@ -287,7 +323,6 @@ export default function AdminPanel() {
                             <Checkbox />
                           </TableHead>
                           <TableHead>Produk</TableHead>
-                          <TableHead>Penjual</TableHead>
                           <TableHead>Harga Awal</TableHead>
                           <TableHead>Penawaran Tertinggi</TableHead>
                           <TableHead>Status</TableHead>
@@ -310,16 +345,8 @@ export default function AdminPanel() {
                                 />
                                 <div>
                                   <p className="font-medium text-gray-900">{auction.title}</p>
-                                  <p className="text-sm text-gray-600">ID: AUC-{auction.id.toString().padStart(3, '0')}</p>
+                                  <p className="text-sm text-gray-600">ID: {auction.id ? `AUC-${auction.id.toString().padStart(3, '0')}` : "AUC-??? (data error)"}</p>
                                 </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <p className="font-medium text-gray-900">
-                                  {auction.seller.firstName} {auction.seller.lastName}
-                                </p>
-                                <p className="text-sm text-gray-600">⭐ {auction.seller.rating} rating</p>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -345,18 +372,31 @@ export default function AdminPanel() {
                             </TableCell>
                             <TableCell>
                               <div className="flex space-x-2">
-                                <Button variant="ghost" size="sm">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!auction.id}
+                                  onClick={() => handleView(auction.id)}
+                                  title="Lihat Detail"
+                                >
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                                <Button variant="ghost" size="sm">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!auction.id}
+                                  onClick={() => handleEdit(auction.id)}
+                                  title="Edit"
+                                >
                                   <Edit className="h-4 w-4" />
                                 </Button>
                                 {auction.status === "active" && (
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => endAuctionMutation.mutate(auction.id)}
-                                    disabled={endAuctionMutation.isPending}
+                                    disabled={!auction.id || endAuctionMutation.isPending}
+                                    onClick={() => auction.id && endAuctionMutation.mutate(auction.id)}
+                                    title="End Auction"
                                   >
                                     End
                                   </Button>
@@ -364,8 +404,9 @@ export default function AdminPanel() {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => deleteAuctionMutation.mutate(auction.id)}
-                                  disabled={deleteAuctionMutation.isPending}
+                                  disabled={!auction.id || deleteAuctionMutation.isPending}
+                                  onClick={() => auction.id && deleteAuctionMutation.mutate(auction.id)}
+                                  title="Hapus"
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
@@ -438,42 +479,39 @@ export default function AdminPanel() {
                   e.preventDefault();
                   createAuctionMutation.mutate({
                     title: newAuction.title,
-                    starting_price: parseFloat(newAuction.startingPrice),
-                    end_time: newAuction.endTime,
+                    description: newAuction.description,
+                    condition: newAuction.condition,
+                    location: newAuction.location,
+                    categoryId: parseInt(newAuction.categoryId),
+                    imageUrl: newAuction.imageUrl,
+                    startingPrice: parseFloat(newAuction.startingPrice),
+                    currentPrice: parseFloat(newAuction.startingPrice),
+                    endTime: Math.floor(new Date(newAuction.endTime).getTime() / 1000),
+                    status: "active",
+                    createdAt: new Date(),
                   });
                 }}
                 className="space-y-4"
               >
-                <Input
-                  placeholder="Judul Produk"
-                  value={newAuction.title}
-                  onChange={(e) =>
-                    setNewAuction({ ...newAuction, title: e.target.value })
-                  }
-                />
-                <Input
-                  placeholder="Harga Awal"
-                  type="number"
-                  value={newAuction.startingPrice}
-                  onChange={(e) =>
-                    setNewAuction({ ...newAuction, startingPrice: e.target.value })
-                  }
-                />
-                <Input
-                  placeholder="Waktu Berakhir"
-                  type="datetime-local"
-                  value={newAuction.endTime}
-                  onChange={(e) =>
-                    setNewAuction({ ...newAuction, endTime: e.target.value })
-                  }
-                />
+                <Input placeholder="Judul Lelang" value={newAuction.title} onChange={(e) => setNewAuction({ ...newAuction, title: e.target.value })} />
+                <Input placeholder="Deskripsi" value={newAuction.description} onChange={(e) => setNewAuction({ ...newAuction, description: e.target.value })} />
+                <Input placeholder="Kondisi" value={newAuction.condition} onChange={(e) => setNewAuction({ ...newAuction, condition: e.target.value })} />
+                <Input placeholder="Lokasi" value={newAuction.location} onChange={(e) => setNewAuction({ ...newAuction, location: e.target.value })} />
+                <select
+                  value={newAuction.categoryId}
+                  onChange={(e) => setNewAuction({ ...newAuction, categoryId: e.target.value })}
+                >
+                  <option value="">-- Pilih Kategori --</option>
+                  <option value="1">Elektronik</option>
+                  <option value="2">Fashion</option>
+                  <option value="3">Kendaraan</option>
+                </select>
+                <Input placeholder="URL Gambar (opsional)" value={newAuction.imageUrl} onChange={(e) => setNewAuction({ ...newAuction, imageUrl: e.target.value })} />
+                <Input placeholder="Harga Awal" type="number" value={newAuction.startingPrice} onChange={(e) => setNewAuction({ ...newAuction, startingPrice: e.target.value })} />
+                <Input placeholder="Waktu Berakhir" type="datetime-local" value={newAuction.endTime} onChange={(e) => setNewAuction({ ...newAuction, endTime: e.target.value })} />
                 <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
-                    Batal
-                  </Button>
-                  <Button type="submit" disabled={createAuctionMutation.isPending}>
-                    Simpan
-                  </Button>
+                  <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>Batal</Button>
+                  <Button type="submit" disabled={createAuctionMutation.isPending}>Simpan</Button>
                 </div>
               </form>
             </div>
