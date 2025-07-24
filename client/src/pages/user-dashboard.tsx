@@ -278,8 +278,8 @@ export default function UserDashboard() {
                               payment.status === "verified" ? "default" :
                               payment.status === "rejected" ? "destructive" : "secondary"
                             }>
-                              {payment.status === "verified" ? "Verified" :
-                               payment.status === "rejected" ? "Rejected" : "Pending"}
+                              {payment.status === "verified" ? "Sukses" :
+                               payment.status === "rejected" ? "Ditolak" : "Pending"}
                             </Badge>
                           </TableCell>
                           <TableCell>

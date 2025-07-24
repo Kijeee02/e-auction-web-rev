@@ -275,7 +275,7 @@ export default function AdminPanel() {
     mutationFn: async () => {
       const res = await apiRequest("POST", `/api/admin/check-expired`);
       if (!res.ok) throw new Error("Failed to check expired auctions");
-      return res.json?.() ?? true;
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
@@ -858,8 +858,7 @@ export default function AdminPanel() {
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                               ```python
-                                <Button
+                               ```python                                <Button
                                   variant="outline"
                                   size="sm"
                                   disabled={!auction.id || unarchiveMutation.isPending}

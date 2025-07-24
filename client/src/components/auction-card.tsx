@@ -76,6 +76,12 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
         </div>
 
         <div className="mt-4 pt-4 border-t border-gray-200">
+          
+          <div className="flex items-center justify-between text-sm text-gray-600">
+            <span>{auction.bids?.length || 0} penawaran</span>
+            <span>{auction.category?.name}</span>
+          </div>
+
           <div className="flex justify-between items-center mb-3">
             <span className="text-sm text-gray-600 flex items-center">
               <Users className="h-4 w-4 mr-1" />

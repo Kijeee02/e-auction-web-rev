@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,80 +64,53 @@ export default function PaymentStatus({ auctionId }: PaymentStatusProps) {
 
   return (
     <Card className="mt-4">
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <CreditCard className="h-5 w-5 mr-2" />
-          Payment Status
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Status:</span>
-            <div className="flex items-center space-x-2">
-              {getStatusIcon(payment.status)}
-              <Badge variant={getStatusVariant(payment.status)}>
-                {getStatusText(payment.status)}
-              </Badge>
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            {getStatusIcon(payment.status)}
+            <div className="ml-3">
+              <h3 className="font-medium text-gray-900">Status Pembayaran</h3>
+              <p className="text-sm text-gray-600">
+                Jumlah: Rp {Number(payment.amount).toLocaleString('id-ID')}
+              </p>
+              <p className="text-sm text-gray-500">
+                Disubmit: {new Date(payment.createdAt).toLocaleDateString('id-ID')}
+              </p>
             </div>
           </div>
-          
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Amount:</span>
-            <span className="font-bold">Rp {Number(payment.amount).toLocaleString('id-ID')}</span>
-          </div>
-          
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Payment Method:</span>
-            <span className="capitalize">{payment.paymentMethod.replace('_', ' ')}</span>
-          </div>
-          
-          {payment.paymentMethod === "bank_transfer" && payment.bankName && (
-            <>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Bank:</span>
-                <span>{payment.bankName}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Account:</span>
-                <span>{payment.accountNumber}</span>
-              </div>
-            </>
-          )}
-          
-          <div className="flex items-center justify-between">
-            <span className="text-gray-600">Submitted:</span>
-            <span className="text-sm">{new Date(payment.createdAt).toLocaleDateString('id-ID')}</span>
-          </div>
-          
-          {payment.verifiedAt && (
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600">Verified:</span>
-              <span className="text-sm">{new Date(payment.verifiedAt).toLocaleDateString('id-ID')}</span>
-            </div>
-          )}
-          
-          {payment.paymentProof && (
-            <div className="mt-3">
-              <span className="text-sm font-medium text-gray-700">Payment Proof:</span>
-              <div className="mt-2">
-                <img
-                  src={payment.paymentProof}
-                  alt="Payment proof"
-                  className="max-w-xs h-32 object-cover rounded-lg border cursor-pointer"
-                  onClick={() => window.open(payment.paymentProof, '_blank')}
-                />
-              </div>
-            </div>
-          )}
-
-          {payment.notes && (
-            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">Admin Notes:</span>
-              <p className="text-sm text-gray-600 mt-1">{payment.notes}</p>
-            </div>
-          )}
+          <Badge variant={getStatusVariant(payment.status)}>
+            {getStatusText(payment.status)}
+          </Badge>
         </div>
+
+        {payment.status === "rejected" && payment.notes && (
+          <div className="mt-3 p-3 bg-red-50 rounded-lg">
+            <p className="text-sm text-red-700">
+              <strong>Alasan Penolakan:</strong> {payment.notes}
+            </p>
+          </div>
+        )}
+
+        {payment.status === "verified" && (
+          <div className="mt-3 p-3 bg-green-50 rounded-lg">
+            <p className="text-sm text-green-700">
+              ✅ Pembayaran telah berhasil divalidasi dan diproses oleh admin.
+            </p>
+            {payment.verifiedAt && (
+              <p className="text-sm text-green-600 mt-1">
+                Divalidasi pada: {new Date(payment.verifiedAt).toLocaleDateString('id-ID')}
+              </p>
+            )}
+          </div>
+        )}
+
+        {payment.status === "pending" && (
+          <div className="mt-3 p-3 bg-yellow-50 rounded-lg">
+            <p className="text-sm text-yellow-700">
+              ⏳ Pembayaran Anda sedang dalam proses validasi oleh admin. Harap tunggu konfirmasi lebih lanjut.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
