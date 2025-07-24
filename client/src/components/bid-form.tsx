@@ -100,16 +100,16 @@ export default function BidForm({ auctionId, minimumBid, minimumIncrement, onBid
       {/* Custom Bid Form */}
       <form onSubmit={handleSubmit} className="flex space-x-2">
         <div className="relative flex-1">
-          <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">Rp</span>
+          {/* <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">Rp {bidAmount}</span> */}
           <input
             type="text"
             placeholder="Masukkan penawaran Anda"
-            value={bidAmount ? Number(bidAmount).toLocaleString('id-ID') : ''}
+            value={`Rp${bidAmount ? Number(bidAmount).toLocaleString('id-ID') : ''}`}
             onChange={(e) => {
               const value = e.target.value.replace(/[^\d]/g, '');
               setBidAmount(value);
             }}
-            className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full pl-4 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             disabled={placeBidMutation.isPending}
           />
         </div>

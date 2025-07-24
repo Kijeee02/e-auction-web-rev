@@ -70,22 +70,22 @@ export default function AuctionDetail() {
   // Poll bids every 5s if auction is active and check for expiration
   useEffect(() => {
     if (!auction) return;
-    
+
     const interval = setInterval(() => {
       refetchBids();
-      
+
       // Always refresh auction data to get latest status
       queryClient.invalidateQueries({ queryKey: ["/api/auctions", id] });
-      
+
       // Check if auction has expired client-side
       const now = new Date();
       const endTime = new Date(auction.endTime);
-      
+
       if (now >= endTime && auction.status === "active") {
         console.log("Auction has expired, waiting for server to auto-end it");
       }
     }, 5000);
-    
+
     return () => clearInterval(interval);
   }, [auction, refetchBids, id, queryClient]);
 
@@ -211,7 +211,7 @@ export default function AuctionDetail() {
             <VehicleInfoModal auction={auction} />
 
             {shouldShowPayment && (
-              <PaymentForm 
+              <PaymentForm
                 auction={auction}
                 onPaymentSubmitted={() => {
                   queryClient.invalidateQueries({ queryKey: [`/api/payments/auction/${id}`] });
@@ -289,7 +289,7 @@ export default function AuctionDetail() {
                             </span>
                           </div>
                           <span className={`font-bold ${index === 0 ? "text-green-800" : "text-gray-700"}`}>
-                            Rp {Number(bid.amount ?? 0).toLocaleString('id-ID')}
+                            Rp{Number(bid.amount ?? 0).toLocaleString('id-ID')}
                           </span>
                         </div>
                       ))}
