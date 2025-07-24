@@ -1181,13 +1181,23 @@ This code adds a button to manually check expired auctions and integrates automa
                     )}
                   </div>
 
-                  <Input
-                    placeholder="Harga Awal"
-                    type="number"
-                    value={newAuction.startingPrice}
-                    onChange={(e) => setNewAuction({ ...newAuction, startingPrice: e.target.value })}
-                    required
-                  />
+                  <div className="space-y-1">
+                    <label className="text-sm font-medium text-gray-700">Harga Awal</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">Rp</span>
+                      <input
+                        type="text"
+                        placeholder="0"
+                        value={newAuction.startingPrice ? Number(newAuction.startingPrice).toLocaleString('id-ID') : ''}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/[^\d]/g, '');
+                          setNewAuction({ ...newAuction, startingPrice: value });
+                        }}
+                        className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        required
+                      />
+                    </div>
+                  </div>
                   <Input
                     placeholder="Waktu Berakhir"
                     type="datetime-local"

@@ -312,6 +312,28 @@ export class DatabaseStorage implements IStorage {
       updates.createdAt = new Date(updates.createdAt);
     }
 
+    // Get current auction data to check current status
+    const currentAuction = await this.getAuction(id);
+    if (!currentAuction) {
+      return undefined;
+    }
+
+    // If endTime is being updated and current auction is "ended", check if we should reactivate
+    if (updates.endTime && currentAuction.status === "ended") {
+      const now = new Date();
+      const newEndTime = new Date(updates.endTime);
+      
+      console.log(`[updateAuction] Auction ${id} status check: currentStatus=${currentAuction.status}, newEndTime=${newEndTime.toISOString()}, now=${now.toISOString()}`);
+      
+      // If new end time is in the future, reactivate the auction
+      if (newEndTime > now) {
+        updates.status = "active";
+        // Clear winner since auction is active again
+        updates.winnerId = null;
+        console.log(`[updateAuction] Reactivating auction ${id} because new end time is in future`);
+      }
+    }
+
     const [auction] = await db
       .update(auctions)
       .set(updates)
