@@ -80,10 +80,18 @@ export default function PaymentForm({ auction, onPaymentSubmitted }: PaymentForm
 
   const paymentMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log("Sending payment data:", data);
       const res = await apiRequest("POST", "/api/payments", data);
       if (!res.ok) {
-        const error = await res.text();
-        throw new Error(error || "Failed to submit payment");
+        const errorText = await res.text();
+        console.error("Payment submission error:", errorText);
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          throw new Error(errorText || "Failed to submit payment");
+        }
+        throw new Error(errorData.message || "Failed to submit payment");
       }
       return res.json();
     },
@@ -95,6 +103,7 @@ export default function PaymentForm({ auction, onPaymentSubmitted }: PaymentForm
       onPaymentSubmitted();
     },
     onError: (error: Error) => {
+      console.error("Payment mutation error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to submit payment information",
@@ -124,11 +133,19 @@ export default function PaymentForm({ auction, onPaymentSubmitted }: PaymentForm
       return;
     }
 
-    paymentMutation.mutate({
+    const paymentData = {
       auctionId: auction.id,
-      amount: auction.currentPrice,
-      ...formData,
-    });
+      amount: Number(auction.currentPrice),
+      paymentMethod: formData.paymentMethod,
+      paymentProof: formData.paymentProof,
+      bankName: formData.bankName || null,
+      accountNumber: formData.accountNumber || null,
+      accountName: formData.accountName || null,
+      status: "pending"
+    };
+
+    console.log("Submitting payment data:", paymentData);
+    paymentMutation.mutate(paymentData);
   };
 
   return (

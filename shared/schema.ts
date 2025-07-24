@@ -231,6 +231,13 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
 }).extend({
   paymentMethod: z.enum(["bank_transfer", "ewallet", "cash"]),
   status: z.enum(["pending", "verified", "rejected"]).default("pending"),
+  amount: z.number().positive("Amount must be positive"),
+  auctionId: z.number().positive("Auction ID must be positive"),
+  winnerId: z.number().positive("Winner ID must be positive"),
+  paymentProof: z.string().optional(),
+  bankName: z.string().optional(),
+  accountNumber: z.string().optional(),
+  accountName: z.string().optional(),
 });
 
 // Types

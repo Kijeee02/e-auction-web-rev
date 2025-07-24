@@ -558,8 +558,24 @@ export class DatabaseStorage implements IStorage {
     }
 
     async createPayment(payment: InsertPayment): Promise<Payment> {
-        const [newPayment] = await db.insert(payments).values(payment).returning();
-        return newPayment;
+        try {
+            console.log("Creating payment with data:", payment);
+            
+            const [newPayment] = await db.insert(payments).values({
+                ...payment,
+                createdAt: new Date()
+            }).returning();
+            
+            if (!newPayment) {
+                throw new Error("Payment creation returned null");
+            }
+            
+            console.log("Payment created successfully:", newPayment);
+            return newPayment;
+        } catch (error) {
+            console.error("Error in createPayment:", error);
+            throw new Error(`Failed to create payment: ${error instanceof Error ? error.message : String(error)}`);
+        }
     }
 
     async updatePayment(id: number, updates: Partial<Payment>): Promise<Payment | undefined> {

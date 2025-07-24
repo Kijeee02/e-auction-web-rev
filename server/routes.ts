@@ -474,14 +474,23 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
+      console.log("Payment request body:", req.body);
+
+      // Validate and parse payment data
       const paymentData = insertPaymentSchema.parse({
         ...req.body,
         winnerId: req.user.id,
       });
 
+      console.log("Parsed payment data:", paymentData);
+
       // Verify user is the winner of the auction
       const auction = await storage.getAuction(paymentData.auctionId);
-      if (!auction || auction.winnerId !== req.user.id) {
+      if (!auction) {
+        return res.status(404).json({ message: "Auction not found" });
+      }
+
+      if (auction.winnerId !== req.user.id) {
         return res.status(403).json({ message: "You are not the winner of this auction" });
       }
 
@@ -492,12 +501,24 @@ export function registerRoutes(app: Express): Server {
       }
 
       const payment = await storage.createPayment(paymentData);
+      console.log("Payment created successfully:", payment);
+      
       res.status(201).json(payment);
     } catch (error) {
+      console.error("Payment creation error:", error);
+      
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid payment data", errors: error.errors });
+        console.error("Zod validation errors:", error.errors);
+        return res.status(400).json({ 
+          message: "Invalid payment data", 
+          errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
+        });
       }
-      res.status(500).json({ message: "Failed to create payment" });
+      
+      res.status(500).json({ 
+        message: "Failed to create payment",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
