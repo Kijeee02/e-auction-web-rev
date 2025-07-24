@@ -56,11 +56,11 @@ export function registerRoutes(app: Express): Server {
       const id = parseInt(req.params.id);
       const updates = req.body;
       const category = await storage.updateCategory(id, updates);
-      
+
       if (!category) {
         return res.status(404).json({ message: "Category not found" });
       }
-      
+
       res.json(category);
     } catch (error) {
       res.status(500).json({ message: "Failed to update category" });
@@ -75,7 +75,7 @@ export function registerRoutes(app: Express): Server {
 
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteCategory(id);
-      
+
       if (deleted) {
         res.status(200).json({ message: "Category deleted" });
       } else {
@@ -99,6 +99,19 @@ export function registerRoutes(app: Express): Server {
       res.json(auctions);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch auctions" });
+    }
+  });
+
+  app.get("/api/auctions/archived", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const archivedAuctions = await storage.getArchivedAuctions();
+      res.json(archivedAuctions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch archived auctions" });
     }
   });
 
@@ -235,19 +248,6 @@ export function registerRoutes(app: Express): Server {
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to archive auction" });
-    }
-  });
-
-  app.get("/api/auctions/archived", async (req, res) => {
-    try {
-      if (!req.isAuthenticated() || req.user.role !== "admin") {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const archivedAuctions = await storage.getArchivedAuctions();
-      res.json(archivedAuctions);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch archived auctions" });
     }
   });
 

@@ -76,13 +76,17 @@ export function initializeDatabase() {
       );
     `);
 
-    // Reset categories to only Motor and Mobil
-    sqlite.exec(`DELETE FROM categories`);
-    sqlite.exec(`
-      INSERT INTO categories (name, description) VALUES
-      ('Motor', 'Sepeda motor bekas'),
-      ('Mobil', 'Mobil bekas');
-    `);
+    // Jangan hapus data production!
+    // Jika ingin seed data kategori, lakukan hanya jika tabel kosong
+    const row = sqlite.prepare('SELECT COUNT(*) as count FROM categories').get() as { count: number } | undefined;
+    const count = row?.count ?? 0;
+    if (count === 0) {
+      sqlite.exec(`
+        INSERT INTO categories (name, description) VALUES
+        ('Motor', 'Sepeda motor bekas'),
+        ('Mobil', 'Mobil bekas');
+      `);
+    }
 
     console.log('✓ Database initialized successfully');
   } catch (error) {

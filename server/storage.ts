@@ -328,12 +328,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async archiveAuction(auctionId: number): Promise<AuctionWithDetails | undefined> {
-    await db
+    const result = await db
       .update(auctions)
       .set({ archived: true })
       .where(eq(auctions.id, auctionId))
       .returning();
-
+    if (result.length === 0) {
+      console.error(`[archiveAuction] Tidak ada auction dengan id`, auctionId);
+    } else {
+      console.log(`[archiveAuction] Auction id ${auctionId} berhasil diarsipkan.`);
+    }
     return this.getAuction(auctionId);
   }
 
@@ -385,6 +389,12 @@ export class DatabaseStorage implements IStorage {
         .where(eq(auctions.archived, true))
         .orderBy(desc(auctions.createdAt));
 
+      console.log(`[getArchivedAuctions] Jumlah data arsip:`, results.length);
+      if (results.length === 0) {
+        console.warn(`[getArchivedAuctions] Tidak ada data lelang yang diarsipkan.`);
+      }
+
+      // FLATTEN: spread result.auction ke root agar frontend bisa akses id, title, dst langsung
       const auctionsWithBids = await Promise.all(
         results.map(async (result) => {
           const auctionBids = await this.getBidsForAuction(result.auction.id);
