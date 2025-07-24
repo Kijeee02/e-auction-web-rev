@@ -16,7 +16,7 @@ import {
   type UserStats
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, count, sql, or, like } from "drizzle-orm";
+import { eq, desc, and, or, like, gte, count, sql } from "drizzle-orm";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 

@@ -139,7 +139,7 @@ export default function AdminPanel() {
         toast({ title: "Gagal", description: "Pembuatan kategori gagal", variant: "destructive" });
       },
     });
-  
+
     const updateCategoryMutation = useMutation({
       mutationFn: async ({ id, data }: { id: number; data: any }) => {
         const res = await apiRequest("PUT", `/api/categories/${id}`, data);
@@ -157,7 +157,7 @@ export default function AdminPanel() {
         toast({ title: "Gagal", description: "Update kategori gagal", variant: "destructive" });
       },
     });
-  
+
     const deleteCategoryMutation = useMutation({
       mutationFn: async (id: number) => {
         const res = await apiRequest("DELETE", `/api/categories/${id}`);
@@ -972,7 +972,7 @@ export default function AdminPanel() {
                       </option>
                     ))}
                   </select>
-                  
+
                   {/* File Upload for Image */}
                   <div className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">Upload Gambar</label>
@@ -1003,7 +1003,7 @@ export default function AdminPanel() {
                       </div>
                     )}
                   </div>
-                  
+
                   <Input 
                     placeholder="Harga Awal" 
                     type="number" 
@@ -1022,7 +1022,7 @@ export default function AdminPanel() {
 
                 {/* Right Column - Vehicle Specific Info */}
                 <div className="space-y-4">
-                  {(newAuction.categoryId === "1" || newAuction.categoryId === "2") ? (
+                  {(newAuction.categoryId === "7" || newAuction.categoryId === "8") ? (
                     <>
                       <h3 className="font-semibold text-gray-900 border-b pb-2">
                         Informasi {newAuction.categoryId === "1" ? "Motor" : "Mobil"}
