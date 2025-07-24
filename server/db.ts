@@ -74,6 +74,23 @@ export function initializeDatabase() {
         auction_id INTEGER NOT NULL REFERENCES auctions(id),
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
+
+      CREATE TABLE IF NOT EXISTS payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        auction_id INTEGER NOT NULL REFERENCES auctions(id),
+        winner_id INTEGER NOT NULL REFERENCES users(id),
+        amount REAL NOT NULL,
+        payment_method TEXT NOT NULL,
+        payment_proof TEXT,
+        bank_name TEXT,
+        account_number TEXT,
+        account_name TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        notes TEXT,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        verified_at INTEGER,
+        verified_by INTEGER REFERENCES users(id)
+      );
     `);
 
     // Jangan hapus data production!
