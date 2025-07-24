@@ -452,6 +452,21 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Check and end expired auctions
+  app.post("/api/admin/check-expired", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      await storage.checkAndEndExpiredAuctions();
+      res.json({ message: "Expired auctions checked and processed" });
+    } catch (error) {
+      console.error("Error checking expired auctions:", error);
+      res.status(500).json({ message: "Failed to check expired auctions" });
+    }
+  });
+
   // Admin routes
   app.get("/api/admin/stats", async (req, res) => {
     try {

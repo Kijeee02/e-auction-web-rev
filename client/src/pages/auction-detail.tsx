@@ -65,12 +65,30 @@ export default function AuctionDetail() {
     },
   });
 
-  // Poll bids every 5s if auction is active
+  // Poll bids every 5s if auction is active and check for expiration
   useEffect(() => {
     if (!auction || auction.status !== "active") return;
-    const interval = setInterval(() => refetchBids(), 5000);
+    
+    const interval = setInterval(() => {
+      refetchBids();
+      
+      // Check if auction has expired
+      const now = new Date();
+      const endTime = new Date(auction.endTime);
+      
+      if (now >= endTime) {
+        // Refetch auction data to get updated status
+        queryClient.invalidateQueries({ queryKey: ["/api/auctions", id] });
+        
+        // If there are bids, auction should end automatically
+        if (bids.length > 0) {
+          console.log("Auction has expired with bids, should auto-end");
+        }
+      }
+    }, 5000);
+    
     return () => clearInterval(interval);
-  }, [auction, refetchBids]);
+  }, [auction, refetchBids, bids, id, queryClient]);
 
   if (loadingAuction) {
     return <div className="min-h-screen bg-gray-50">Loading...</div>;

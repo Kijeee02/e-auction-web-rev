@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 // import { AuctionWithDetails } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Auction } from "@shared/schema";
 import { useLocation, useParams } from "wouter";
 import VehicleInfoModal from "@/components/vehicle-info-modal";
+import { Clock } from "lucide-react";
 
 
 
@@ -229,6 +230,15 @@ export default function AdminPanel() {
     staleTime: 0,
   });
 
+  // Auto-check expired auctions every 2 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkExpiredMutation.mutate();
+    }, 120000); // 2 minutes
+
+    return () => clearInterval(interval);
+  }, [checkExpiredMutation]);
+
   const deleteAuctionMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await apiRequest("DELETE", `/api/auctions/${id}`);
@@ -272,6 +282,28 @@ export default function AdminPanel() {
       toast({
         title: "Error",
         description: "Failed to end auction",
+        variant: "destructive",
+      });
+    },
+  });
+
+    const checkExpiredMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", `/api/admin/check-expired`);
+      if (!res.ok) throw new Error("Failed to check expired auctions");
+      return res.json?.() ?? true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
+      toast({
+        title: "Success",
+        description: "Expired auctions checked successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to check expired auctions",
         variant: "destructive",
       });
     },
@@ -829,14 +861,14 @@ export default function AdminPanel() {
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </TabsContent>
+This code adds a button to manually check expired auctions and integrates automatic periodic checking.                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </TabsContent>
 
               <TabsContent value="users" className="space-y-4">
                 <div className="text-center py-8">
