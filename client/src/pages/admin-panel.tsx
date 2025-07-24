@@ -115,6 +115,18 @@ export default function AdminPanel() {
     },
   });
 
+  const {
+    data: archivedAuctions = [],
+    isLoading: isArchivedLoading,
+  } = useQuery<Auction[]>({
+    queryKey: ["/api/auctions/archived"],
+    queryFn: async () => {
+      const res = await fetch("/api/auctions/archived");
+      if (!res.ok) throw new Error("Gagal memuat lelang yang diarsipkan");
+      return res.json();
+    },
+  });
+
   const deleteAuctionMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await apiRequest("DELETE", `/api/auctions/${id}`);
@@ -180,6 +192,29 @@ export default function AdminPanel() {
       toast({
         title: "Error",
         description: "Failed to archive auction",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const unarchiveMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/auctions/${id}/unarchive`);
+      if (!res.ok) throw new Error("Failed to unarchive auction");
+      return res.json?.() ?? true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/auctions/archived"] });
+      toast({
+        title: "Success",
+        description: "Auction unarchived successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to unarchive auction",
         variant: "destructive",
       });
     },
@@ -283,8 +318,9 @@ export default function AdminPanel() {
         <Tabs defaultValue="auctions" className="w-full">
           <Card>
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="auctions">Kelola Lelang</TabsTrigger>
+                <TabsTrigger value="archived">Arsip</TabsTrigger>
                 <TabsTrigger value="users">Pengguna</TabsTrigger>
                 <TabsTrigger value="reports">Laporan</TabsTrigger>
                 <TabsTrigger value="settings">Pengaturan</TabsTrigger>
@@ -471,6 +507,133 @@ export default function AdminPanel() {
                         </Button>
                       </div>
                     </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              <TabsContent value="archived" className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">Lelang yang Diarsipkan</h3>
+                    <p className="text-sm text-gray-600">Kelola barang lelang yang sudah diarsipkan</p>
+                  </div>
+                </div>
+
+                {isArchivedLoading ? (
+                  <div className="text-center py-8">
+                    <div className="animate-pulse space-y-4">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                      ))}
+                    </div>
+                  </div>
+                ) : archivedAuctions.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-gray-400 mb-4">
+                      <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h8a2 2 0 002-2V8m-9 4h4" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada lelang yang diarsipkan</h3>
+                    <p className="text-gray-600">Lelang yang diarsipkan akan muncul di sini.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Produk</TableHead>
+                          <TableHead>Harga Awal</TableHead>
+                          <TableHead>Penawaran Tertinggi</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Pemenang</TableHead>
+                          <TableHead>Diarsipkan</TableHead>
+                          <TableHead>Aksi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {archivedAuctions.map((auction) => (
+                          <TableRow key={auction.id}>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <img
+                                  src={auction.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"}
+                                  alt={auction.title}
+                                  className="w-12 h-12 object-cover rounded-lg mr-3"
+                                />
+                                <div>
+                                  <p className="font-medium text-gray-900">{auction.title}</p>
+                                  <p className="text-sm text-gray-600">ID: {auction.id ? `AUC-${auction.id.toString().padStart(3, '0')}` : "AUC-??? (data error)"}</p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-medium text-gray-900">
+                                Rp {auction.startingPrice.toLocaleString('id-ID')}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-bold text-primary">
+                                Rp {auction.currentPrice.toLocaleString('id-ID')}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge className={`status-${auction.status}`}>
+                                {auction.status === "active" ? "Aktif" :
+                                  auction.status === "ended" ? "Berakhir" : "Dibatalkan"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {auction.winnerId ? (
+                                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                  Ada Pemenang
+                                </Badge>
+                              ) : (
+                                <span className="text-gray-500 text-sm">Tidak ada pemenang</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-gray-600">
+                                {new Date(auction.createdAt).toLocaleDateString('id-ID')}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!auction.id}
+                                  onClick={() => handleView(auction.id)}
+                                  title="Lihat Detail"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={!auction.id || unarchiveMutation.isPending}
+                                  onClick={() => auction.id && unarchiveMutation.mutate(auction.id)}
+                                  title="Kembalikan ke Daftar Aktif"
+                                  className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                                >
+                                  Unarchive
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!auction.id || deleteAuctionMutation.isPending}
+                                  onClick={() => auction.id && deleteAuctionMutation.mutate(auction.id)}
+                                  title="Hapus Permanen"
+                                  className="text-red-600 hover:text-red-800"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </TabsContent>
