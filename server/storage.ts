@@ -4,16 +4,18 @@ import {
   bids,
   categories,
   watchlist,
+  payments,
   type User,
-  type InsertUser,
   type Auction,
-  type InsertAuction,
   type Bid,
-  type InsertBid,
   type Category,
-  type InsertCategory,
+  type Payment,
   type AuctionWithDetails,
-  type UserStats
+  type UserStats,
+  type InsertAuction,
+  type InsertBid,
+  type InsertCategory,
+  type InsertPayment,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, like, gte, count, sql } from "drizzle-orm";
@@ -64,6 +66,12 @@ export interface IStorage {
   addToWatchlist(userId: number, auctionId: number): Promise<void>;
   removeFromWatchlist(userId: number, auctionId: number): Promise<void>;
   getUserWatchlist(userId: number): Promise<AuctionWithDetails[]>;
+
+    // Payments
+    getPaymentsForUser(userId: number): Promise<Payment[]>;
+    createPayment(payment: InsertPayment): Promise<Payment>;
+    updatePayment(id: number, updates: Partial<Payment>): Promise<Payment | undefined>;
+    getPayment(id: number): Promise<Payment | undefined>;
 
   // Session store
   sessionStore: any;
@@ -537,10 +545,33 @@ export class DatabaseStorage implements IStorage {
     return auctionsWithBids;
   }
 
+    async getPaymentsForUser(userId: number): Promise<Payment[]> {
+        return db.select().from(payments).where(eq(payments.userId, userId));
+    }
+
+    async createPayment(payment: InsertPayment): Promise<Payment> {
+        const [newPayment] = await db.insert(payments).values(payment).returning();
+        return newPayment;
+    }
+
+    async updatePayment(id: number, updates: Partial<Payment>): Promise<Payment | undefined> {
+        const [payment] = await db
+            .update(payments)
+            .set(updates)
+            .where(eq(payments.id, id))
+            .returning();
+        return payment || undefined;
+    }
+
+    async getPayment(id: number): Promise<Payment | undefined> {
+        const [payment] = await db.select().from(payments).where(eq(payments.id, id));
+        return payment || undefined;
+    }
+
   async checkAndEndExpiredAuctions(): Promise<number> {
     try {
       const now = new Date();
-      
+
       // Find all active auctions that have expired
       const expiredAuctions = await db
         .select()

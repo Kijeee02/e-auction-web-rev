@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
-import { insertAuctionSchema, insertBidSchema, insertCategorySchema } from "@shared/schema";
+import { insertAuctionSchema, insertBidSchema, insertCategorySchema, insertPaymentSchema } from "@shared/schema";
 import { z } from "zod";
 import express, { Request, Response } from "express";
 import { db } from "./db";
@@ -464,6 +464,110 @@ export function registerRoutes(app: Express): Server {
     } catch (error) {
       console.error("Error checking expired auctions:", error);
       res.status(500).json({ message: "Failed to check expired auctions" });
+    }
+  });
+
+  // Payment routes
+  app.post("/api/payments", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const paymentData = insertPaymentSchema.parse({
+        ...req.body,
+        winnerId: req.user.id,
+      });
+
+      // Verify user is the winner of the auction
+      const auction = await storage.getAuction(paymentData.auctionId);
+      if (!auction || auction.winnerId !== req.user.id) {
+        return res.status(403).json({ message: "You are not the winner of this auction" });
+      }
+
+      // Check if payment already exists
+      const existingPayment = await storage.getPaymentByAuctionId(paymentData.auctionId);
+      if (existingPayment) {
+        return res.status(400).json({ message: "Payment already submitted for this auction" });
+      }
+
+      const payment = await storage.createPayment(paymentData);
+      res.status(201).json(payment);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid payment data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create payment" });
+    }
+  });
+
+  app.get("/api/payments/auction/:auctionId", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const auctionId = parseInt(req.params.auctionId);
+      const payment = await storage.getPaymentByAuctionId(auctionId);
+
+      if (!payment) {
+        return res.status(404).json({ message: "Payment not found" });
+      }
+
+      // Check if user is the winner or admin
+      if (payment.winnerId !== req.user.id && req.user.role !== "admin") {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
+      res.json(payment);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch payment" });
+    }
+  });
+
+  app.get("/api/user/payments", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const payments = await storage.getUserPayments(req.user.id);
+      res.json(payments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch user payments" });
+    }
+  });
+
+  app.get("/api/admin/payments/pending", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const pendingPayments = await storage.getAllPendingPayments();
+      res.json(pendingPayments);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch pending payments" });
+    }
+  });
+
+  app.post("/api/admin/payments/:id/verify", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const paymentId = parseInt(req.params.id);
+      const { status, notes } = req.body;
+
+      if (!["verified", "rejected"].includes(status)) {
+        return res.status(400).json({ message: "Invalid status" });
+      }
+
+      const payment = await storage.verifyPayment(paymentId, req.user.id, status, notes);
+      res.json(payment);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to verify payment" });
     }
   });
 

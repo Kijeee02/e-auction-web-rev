@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { UserStats, Bid, AuctionWithDetails } from "@shared/schema";
+import { UserStats, Bid, AuctionWithDetails, Payment } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import Navbar from "@/components/navbar";
 import AuctionCard from "@/components/auction-card";
@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Gavel, Trophy, Eye, Star, ArrowRight } from "lucide-react";
+import { Gavel, Trophy, Eye, Star, ArrowRight, CreditCard } from "lucide-react";
 
 export default function UserDashboard() {
   const { user } = useAuth();
@@ -32,6 +32,11 @@ export default function UserDashboard() {
       if (!res.ok) throw new Error("Failed to fetch won auctions");
       return res.json();
     },
+    enabled: !!user,
+  });
+
+  const { data: userPayments = [] } = useQuery<(Payment & { auction: any })[]>({
+    queryKey: ["/api/user/payments"],
     enabled: !!user,
   });
 
@@ -139,9 +144,10 @@ export default function UserDashboard() {
         <Tabs defaultValue="active-bids" className="w-full">
           <Card>
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="active-bids">Penawaran Aktif</TabsTrigger>
                 <TabsTrigger value="won">Lelang Dimenangkan</TabsTrigger>
+                <TabsTrigger value="payments">Pembayaran</TabsTrigger>
                 <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
                 <TabsTrigger value="history">Riwayat Lelang</TabsTrigger>
                 <TabsTrigger value="profile">Profil</TabsTrigger>
@@ -219,6 +225,70 @@ export default function UserDashboard() {
                           </TableRow>
                         );
                       })}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
+
+              <TabsContent value="payments" className="space-y-4">
+                {userPayments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CreditCard className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      No payment records
+                    </h3>
+                    <p className="text-gray-600">
+                      Your payment records will appear here after you win auctions.
+                    </p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Auction</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Payment Method</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Submitted</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {userPayments.map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <img
+                                src={payment.auction?.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"}
+                                alt={payment.auction?.title}
+                                className="w-12 h-12 object-cover rounded-lg mr-3"
+                              />
+                              <div>
+                                <p className="font-medium text-gray-900">{payment.auction?.title}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-bold">Rp {Number(payment.amount).toLocaleString('id-ID')}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="capitalize">{payment.paymentMethod.replace('_', ' ')}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              payment.status === "verified" ? "default" :
+                              payment.status === "rejected" ? "destructive" : "secondary"
+                            }>
+                              {payment.status === "verified" ? "Verified" :
+                               payment.status === "rejected" ? "Rejected" : "Pending"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-gray-600">
+                              {new Date(payment.createdAt).toLocaleDateString('id-ID')}
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      ))}
                     </TableBody>
                   </Table>
                 )}

@@ -65,6 +65,23 @@ export const watchlist = sqliteTable("watchlist", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
+export const payments = sqliteTable("payments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  auctionId: integer("auction_id").references(() => auctions.id).notNull(),
+  winnerId: integer("winner_id").references(() => users.id).notNull(),
+  amount: real("amount").notNull(),
+  paymentMethod: text("payment_method").notNull(), // "bank_transfer", "ewallet", etc.
+  paymentProof: text("payment_proof"), // URL to uploaded proof image
+  bankName: text("bank_name"),
+  accountNumber: text("account_number"),
+  accountName: text("account_name"),
+  status: text("status").notNull().default("pending"), // "pending", "verified", "rejected"
+  notes: text("notes"), // Admin notes
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  verifiedAt: integer("verified_at", { mode: "timestamp" }),
+  verifiedBy: integer("verified_by").references(() => users.id),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ many }) => ({
   bids: many(bids),
@@ -109,6 +126,21 @@ export const watchlistRelations = relations(watchlist, ({ one }) => ({
   auction: one(auctions, {
     fields: [watchlist.auctionId],
     references: [auctions.id],
+  }),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  auction: one(auctions, {
+    fields: [payments.auctionId],
+    references: [auctions.id],
+  }),
+  winner: one(users, {
+    fields: [payments.winnerId],
+    references: [users.id],
+  }),
+  verifier: one(users, {
+    fields: [payments.verifiedBy],
+    references: [users.id],
   }),
 }));
 
@@ -191,6 +223,16 @@ export const insertCategorySchema = createInsertSchema(categories).omit({
   isActive: true,
 });
 
+export const insertPaymentSchema = createInsertSchema(payments).omit({
+  id: true,
+  createdAt: true,
+  verifiedAt: true,
+  verifiedBy: true,
+}).extend({
+  paymentMethod: z.enum(["bank_transfer", "ewallet", "cash"]),
+  status: z.enum(["pending", "verified", "rejected"]).default("pending"),
+});
+
 // Types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -201,6 +243,8 @@ export type InsertBid = z.infer<typeof insertBidSchema>;
 export type Category = typeof categories.$inferSelect;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type Watchlist = typeof watchlist.$inferSelect;
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 
 // Extended types with relations
 export type AuctionWithDetails = Auction & {

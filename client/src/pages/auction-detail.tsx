@@ -8,6 +8,8 @@ import Navbar from "@/components/navbar";
 import CountdownTimer from "@/components/countdown-timer";
 import BidForm from "@/components/bid-form";
 import VehicleInfoModal from "@/components/vehicle-info-modal";
+import PaymentForm from "@/components/payment-form";
+import PaymentStatus from "@/components/payment-status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -107,6 +109,8 @@ export default function AuctionDetail() {
   const minimumNextBid = currentBid + minimumIncrement;
   const highestBid = bids[0] ?? null;
   const isAuctionActive = auction.status === "active" && new Date() < new Date(auction.endTime);
+  const isWinner = user && auction.winnerId === user.id;
+  const shouldShowPayment = isWinner && auction.status === "ended";
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -205,6 +209,19 @@ export default function AuctionDetail() {
             )}
 
             <VehicleInfoModal auction={auction} />
+
+            {shouldShowPayment && (
+              <PaymentForm 
+                auction={auction}
+                onPaymentSubmitted={() => {
+                  queryClient.invalidateQueries({ queryKey: [`/api/payments/auction/${id}`] });
+                }}
+              />
+            )}
+
+            {isWinner && auction.status === "ended" && (
+              <PaymentStatus auctionId={auction.id} />
+            )}
 
             {isAuctionActive && user && (
               <BidForm

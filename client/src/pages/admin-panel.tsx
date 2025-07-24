@@ -214,20 +214,13 @@ export default function AdminPanel() {
     },
   });
 
-  const {
-    data: archivedAuctions = [],
-    isLoading: isArchivedLoading,
-    refetch: refetchArchived,
-  } = useQuery<Auction[]>({
+  const { data: archivedAuctions = [], isLoading: loadingArchived } = useQuery<Auction[]>({
     queryKey: ["/api/auctions/archived"],
-    queryFn: async () => {
-      const res = await fetch("/api/auctions/archived");
-      if (!res.ok) throw new Error("Gagal memuat lelang yang diarsipkan");
-      return res.json();
-    },
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
     staleTime: 0,
+  });
+
+  const { data: pendingPayments = [], isLoading: loadingPayments } = useQuery<(Payment & { auction: any; winner: any })[]>({
+    queryKey: ["/api/admin/payments/pending"],
   });
 
   const deleteAuctionMutation = useMutation({
@@ -375,6 +368,23 @@ export default function AdminPanel() {
     navigate(`/admin/edit-auction/${id}`);
   };
 
+  const verifyPaymentMutation = useMutation(
+    async ({ paymentId, status, notes }: { paymentId: string; status: string; notes?: string }) => {
+      const res = await apiRequest("POST", `/api/admin/payments/${paymentId}/verify`, { status, notes });
+      if (!res.ok) throw new Error("Failed to verify payment");
+      return res.json();
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/payments/pending"] });
+        toast({ title: "Success", description: "Payment verified successfully" });
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Failed to verify payment", variant: "destructive" });
+      },
+    }
+  );
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -455,10 +465,11 @@ export default function AdminPanel() {
         <Tabs defaultValue="auctions" className="w-full">
           <Card>
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-6">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="auctions">Kelola Lelang</TabsTrigger>
-                <TabsTrigger value="archived">Arsip</TabsTrigger>
                 <TabsTrigger value="categories">Kategori</TabsTrigger>
+                <TabsTrigger value="payments">Pembayaran</TabsTrigger>
+                <TabsTrigger value="archived">Arsip</TabsTrigger>
                 <TabsTrigger value="users">Pengguna</TabsTrigger>
                 <TabsTrigger value="reports">Laporan</TabsTrigger>
                 <TabsTrigger value="settings">Pengaturan</TabsTrigger>
@@ -662,6 +673,94 @@ export default function AdminPanel() {
                 )}
               </TabsContent>
 
+              <TabsContent value="payments" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold">Pending Payments</h3>
+                  <Badge variant="secondary">{pendingPayments.length} pending</Badge>
+                </div>
+
+                {loadingPayments ? (
+                  <div>Loading payments...</div>
+                ) : pendingPayments.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-gray-600">No pending payments</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Auction</TableHead>
+                        <TableHead>Winner</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Payment Method</TableHead>
+                        <TableHead>Submitted</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingPayments.map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{payment.auction?.title}</p>
+                              {payment.paymentProof && (
+                                <a 
+                                  href={payment.paymentProof} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 text-sm hover:underline"
+                                >
+                                  View Proof
+                                </a>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{payment.winner?.firstName} {payment.winner?.lastName}</p>
+                              <p className="text-sm text-gray-600">{payment.winner?.email}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-bold">Rp {Number(payment.amount).toLocaleString('id-ID')}</span>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <span className="capitalize">{payment.paymentMethod.replace('_', ' ')}</span>
+                              {payment.bankName && (
+                                <p className="text-sm text-gray-600">{payment.bankName}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm">{new Date(payment.createdAt).toLocaleDateString('id-ID')}</span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button
+                                size="sm"
+                                onClick={() => verifyPaymentMutation.mutate({ paymentId: payment.id, status: "verified" })}
+                                disabled={verifyPaymentMutation.isPending}
+                              >
+                                Verify
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => verifyPaymentMutation.mutate({ paymentId: payment.id, status: "rejected", notes: "Payment rejected by admin" })}
+                                disabled={verifyPaymentMutation.isPending}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
+
               <TabsContent value="archived" className="space-y-6">
                 <div className="flex justify-between items-center">
                   <div>
@@ -670,7 +769,7 @@ export default function AdminPanel() {
                   </div>
                 </div>
 
-                {isArchivedLoading ? (
+                {loadingArchived ? (
                   <div className="text-center py-8">
                     <div className="animate-pulse space-y-4">
                       {[1, 2, 3].map(i => (
@@ -759,6 +858,7 @@ export default function AdminPanel() {
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
+                               ```python
                                 <Button
                                   variant="outline"
                                   size="sm"
