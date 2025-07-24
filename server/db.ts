@@ -81,9 +81,10 @@ export function initializeDatabase() {
     if (categoriesExist.count === 0) {
       sqlite.exec(`
         INSERT INTO categories (name, description) VALUES
+        ('Motor', 'Sepeda motor bekas'),
+        ('Mobil', 'Mobil bekas'),
         ('Elektronik', 'Perangkat elektronik dan gadget'),
-        ('Kendaraan', 'Motor dan mobil bekas'),
-        ('Rumah & Taman', 'Furniture dan peralatan rumah'),
+        ('Rumah & Tangan', 'Furniture dan peralatan rumah'),
         ('Fashion', 'Pakaian dan aksesoris'),
         ('Hobi & Koleksi', 'Barang koleksi dan hobi'),
         ('Olahraga', 'Peralatan olahraga');

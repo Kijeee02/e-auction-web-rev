@@ -92,6 +92,21 @@ export default function AdminPanel() {
     },
     onSuccess: () => {
       setShowAddModal(false);
+      setNewAuction({
+        title: "",
+        description: "",
+        condition: "",
+        location: "",
+        categoryId: "",
+        imageUrl: "",
+        startingPrice: "",
+        endTime: "",
+        productionYear: "",
+        plateNumber: "",
+        chassisNumber: "",
+        engineNumber: "",
+        documentInfo: "",
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
       toast({
         title: "Sukses",
@@ -390,9 +405,10 @@ export default function AdminPanel() {
         <Tabs defaultValue="auctions" className="w-full">
           <Card>
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="auctions">Kelola Lelang</TabsTrigger>
                 <TabsTrigger value="archived">Arsip</TabsTrigger>
+                <TabsTrigger value="categories">Kategori</TabsTrigger>
                 <TabsTrigger value="users">Pengguna</TabsTrigger>
                 <TabsTrigger value="reports">Laporan</TabsTrigger>
                 <TabsTrigger value="settings">Pengaturan</TabsTrigger>
@@ -710,6 +726,87 @@ export default function AdminPanel() {
                 )}
               </TabsContent>
 
+              <TabsContent value="categories" className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">Kelola Kategori</h3>
+                    <p className="text-sm text-gray-600">Tambah, edit, atau hapus kategori lelang</p>
+                  </div>
+                  <Button onClick={() => setShowCategoryModal(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Tambah Kategori
+                  </Button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nama</TableHead>
+                        <TableHead>Deskripsi</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Dibuat</TableHead>
+                        <TableHead>Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categories.map((category) => (
+                        <TableRow key={category.id}>
+                          <TableCell>
+                            <span className="font-medium text-gray-900">{category.name}</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-gray-600">{category.description}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={category.isActive ? "default" : "secondary"}>
+                              {category.isActive ? "Aktif" : "Nonaktif"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-gray-600">
+                              {new Date(category.createdAt).toLocaleDateString('id-ID')}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingCategory(category);
+                                  setNewCategory({
+                                    name: category.name,
+                                    description: category.description || "",
+                                  });
+                                  setShowCategoryModal(true);
+                                }}
+                                title="Edit"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={deleteCategoryMutation.isPending}
+                                onClick={() => {
+                                  if (confirm(`Hapus kategori "${category.name}"?`)) {
+                                    deleteCategoryMutation.mutate(category.id);
+                                  }
+                                }}
+                                title="Hapus"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+
               <TabsContent value="users" className="space-y-4">
                 <div className="text-center py-8">
                   <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
@@ -800,19 +897,31 @@ export default function AdminPanel() {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  createAuctionMutation.mutate({
+                  const auctionData = {
                     title: newAuction.title,
                     description: newAuction.description,
                     condition: newAuction.condition,
                     location: newAuction.location,
                     categoryId: parseInt(newAuction.categoryId),
-                    imageUrl: newAuction.imageUrl,
+                    imageUrl: newAuction.imageUrl || undefined,
                     startingPrice: parseFloat(newAuction.startingPrice),
                     currentPrice: parseFloat(newAuction.startingPrice),
-                    endTime: Math.floor(new Date(newAuction.endTime).getTime() / 1000),
-                    status: "active",
-                    createdAt: new Date(),
-                  });
+                    endTime: new Date(newAuction.endTime),
+                    minimumIncrement: 50000,
+                  };
+
+                  // Add vehicle-specific fields if category is Motor (1) or Mobil (2)
+                  if (newAuction.categoryId === "1" || newAuction.categoryId === "2") {
+                    Object.assign(auctionData, {
+                      productionYear: newAuction.productionYear ? parseInt(newAuction.productionYear) : undefined,
+                      plateNumber: newAuction.plateNumber || undefined,
+                      chassisNumber: newAuction.chassisNumber || undefined,
+                      engineNumber: newAuction.engineNumber || undefined,
+                      documentInfo: newAuction.documentInfo || undefined,
+                    });
+                  }
+
+                  createAuctionMutation.mutate(auctionData);
                 }}
                 className="space-y-4"
               >
@@ -823,6 +932,8 @@ export default function AdminPanel() {
                 <select
                   value={newAuction.categoryId}
                   onChange={(e) => setNewAuction({ ...newAuction, categoryId: e.target.value })}
+                  className="w-full border rounded p-2"
+                  required
                 >
                   <option value="">-- Pilih Kategori --</option>
                   {categories.map((category) => (
@@ -832,17 +943,41 @@ export default function AdminPanel() {
                   ))}
                 </select>
                 <Input placeholder="URL Gambar (opsional)" value={newAuction.imageUrl} onChange={(e) => setNewAuction({ ...newAuction, imageUrl: e.target.value })} />
-                <Input placeholder="Harga Awal" type="number" value={newAuction.startingPrice} onChange={(e) => setNewAuction({ ...newAuction, startingPrice: e.target.value })} />
-                <Input placeholder="Waktu Berakhir" type="datetime-local" value={newAuction.endTime} onChange={(e) => setNewAuction({ ...newAuction, endTime: e.target.value })} />
-                {newAuction.categoryId === "1" || newAuction.categoryId === "2" ? (
-                  <>
-                    <Input placeholder="Tahun Produksi" value={newAuction.productionYear} onChange={(e) => setNewAuction({ ...newAuction, productionYear: e.target.value })} />
-                    <Input placeholder="No Polisi" value={newAuction.plateNumber} onChange={(e) => setNewAuction({ ...newAuction, plateNumber: e.target.value })} />
-                    <Input placeholder="No Rangka" value={newAuction.chassisNumber} onChange={(e) => setNewAuction({ ...newAuction, chassisNumber: e.target.value })} />
-                    <Input placeholder="No Mesin" value={newAuction.engineNumber} onChange={(e) => setNewAuction({ ...newAuction, engineNumber: e.target.value })} />
-                    <Input placeholder="Keterangan Surat" value={newAuction.documentInfo} onChange={(e) => setNewAuction({ ...newAuction, documentInfo: e.target.value })} />
-                  </>
-                ) : null}
+                <Input placeholder="Harga Awal" type="number" value={newAuction.startingPrice} onChange={(e) => setNewAuction({ ...newAuction, startingPrice: e.target.value })} required />
+                <Input placeholder="Waktu Berakhir" type="datetime-local" value={newAuction.endTime} onChange={(e) => setNewAuction({ ...newAuction, endTime: e.target.value })} required />
+                
+                {/* Vehicle specific fields for Motor (id: 1) and Mobil (id: 2) */}
+                {(newAuction.categoryId === "1" || newAuction.categoryId === "2") && (
+                  <div className="space-y-4 border-t pt-4">
+                    <h4 className="font-medium text-gray-900">Informasi Kendaraan</h4>
+                    <Input 
+                      placeholder="Tahun Produksi" 
+                      type="number"
+                      value={newAuction.productionYear} 
+                      onChange={(e) => setNewAuction({ ...newAuction, productionYear: e.target.value })} 
+                    />
+                    <Input 
+                      placeholder="No Polisi" 
+                      value={newAuction.plateNumber} 
+                      onChange={(e) => setNewAuction({ ...newAuction, plateNumber: e.target.value })} 
+                    />
+                    <Input 
+                      placeholder="No Rangka" 
+                      value={newAuction.chassisNumber} 
+                      onChange={(e) => setNewAuction({ ...newAuction, chassisNumber: e.target.value })} 
+                    />
+                    <Input 
+                      placeholder="No Mesin" 
+                      value={newAuction.engineNumber} 
+                      onChange={(e) => setNewAuction({ ...newAuction, engineNumber: e.target.value })} 
+                    />
+                    <Input 
+                      placeholder="Keterangan Surat (STNK/BPKB)" 
+                      value={newAuction.documentInfo} 
+                      onChange={(e) => setNewAuction({ ...newAuction, documentInfo: e.target.value })} 
+                    />
+                  </div>
+                )}
                 <div className="flex justify-end space-x-2">
                   <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>Batal</Button>
                   <Button type="submit" disabled={createAuctionMutation.isPending}>Simpan</Button>

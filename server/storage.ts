@@ -374,29 +374,34 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getArchivedAuctions(): Promise<AuctionWithDetails[]> {
-    const results = await db
-      .select({
-        auction: auctions,
-        category: categories,
-      })
-      .from(auctions)
-      .innerJoin(categories, eq(auctions.categoryId, categories.id))
-      .where(eq(auctions.archived, true))
-      .orderBy(desc(auctions.createdAt));
+    try {
+      const results = await db
+        .select({
+          auction: auctions,
+          category: categories,
+        })
+        .from(auctions)
+        .innerJoin(categories, eq(auctions.categoryId, categories.id))
+        .where(eq(auctions.archived, true))
+        .orderBy(desc(auctions.createdAt));
 
-    const auctionsWithBids = await Promise.all(
-      results.map(async (result) => {
-        const auctionBids = await this.getBidsForAuction(result.auction.id);
-        return {
-          ...result.auction,
-          category: result.category,
-          bids: auctionBids,
-          _count: { bids: auctionBids.length },
-        };
-      })
-    );
+      const auctionsWithBids = await Promise.all(
+        results.map(async (result) => {
+          const auctionBids = await this.getBidsForAuction(result.auction.id);
+          return {
+            ...result.auction,
+            category: result.category,
+            bids: auctionBids,
+            _count: { bids: auctionBids.length },
+          };
+        })
+      );
 
-    return auctionsWithBids;
+      return auctionsWithBids;
+    } catch (error) {
+      console.error("Error fetching archived auctions:", error);
+      return [];
+    }
   }
 
   async getBidsForAuction(auctionId: number): Promise<(Bid & { bidder: User })[]> {
