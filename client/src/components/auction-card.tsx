@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MapPin, Clock, Users } from "lucide-react";
 import CountdownTimer from "./countdown-timer";
+import VehicleInfoModal from "./vehicle-info-modal";
 
 interface AuctionCardProps {
   auction: AuctionWithDetails;
@@ -79,6 +80,8 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
               {auction.location}
             </span>
           </div>
+          
+          <VehicleInfoModal auction={auction} />
           
           <Link href={`/auction/${auction.id}`}>
             <Button className="w-full bg-primary text-white hover:bg-blue-700 font-semibold">

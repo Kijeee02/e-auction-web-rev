@@ -7,6 +7,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/navbar";
 import CountdownTimer from "@/components/countdown-timer";
 import BidForm from "@/components/bid-form";
+import VehicleInfoModal from "@/components/vehicle-info-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -187,6 +188,8 @@ export default function AuctionDetail() {
                 <CountdownTimer endTime={new Date(auction.endTime).toISOString()} />
               </div>
             )}
+
+            <VehicleInfoModal auction={auction} />
 
             {isAuctionActive && user && (
               <BidForm
