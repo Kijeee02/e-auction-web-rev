@@ -28,6 +28,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Auction } from "@shared/schema";
 import { useLocation, useParams } from "wouter";
+import VehicleInfoModal from "@/components/vehicle-info-modal";
 
 
 
@@ -544,6 +545,19 @@ export default function AdminPanel() {
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
+                                {/* Vehicle Info Button - only show for Motor/Mobil */}
+                                {(auction.categoryId === parseInt(motorCategoryId || "0") || 
+                                  auction.categoryId === parseInt(mobilCategoryId || "0")) && (
+                                  <VehicleInfoModal auction={auction}>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      title="View Document/Info"
+                                    >
+                                      <FileText className="h-4 w-4" />
+                                    </Button>
+                                  </VehicleInfoModal>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="sm"
