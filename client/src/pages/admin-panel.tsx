@@ -230,15 +230,6 @@ export default function AdminPanel() {
     staleTime: 0,
   });
 
-  // Auto-check expired auctions every 2 minutes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      checkExpiredMutation.mutate();
-    }, 120000); // 2 minutes
-
-    return () => clearInterval(interval);
-  }, [checkExpiredMutation]);
-
   const deleteAuctionMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await apiRequest("DELETE", `/api/auctions/${id}`);
@@ -308,6 +299,15 @@ export default function AdminPanel() {
       });
     },
   });
+
+  // Auto-check expired auctions every 2 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkExpiredMutation.mutate();
+    }, 120000); // 2 minutes
+
+    return () => clearInterval(interval);
+  }, [checkExpiredMutation]);
 
   const archiveMutation = useMutation({
     mutationFn: async (id: number) => {
