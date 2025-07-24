@@ -550,11 +550,11 @@ export class DatabaseStorage implements IStorage {
   }
 
     async getPaymentsForUser(userId: number): Promise<Payment[]> {
-        return db.select().from(payments).where(eq(payments.userId, userId));
+        return db.select().from(payments).where(eq(payments.winnerId, userId));
     }
 
     async getUserPayments(userId: number): Promise<Payment[]> {
-      return db.select().from(payments).where(eq(payments.userId, userId));
+      return db.select().from(payments).where(eq(payments.winnerId, userId));
     }
 
     async createPayment(payment: InsertPayment): Promise<Payment> {
@@ -603,7 +603,12 @@ export class DatabaseStorage implements IStorage {
     async verifyPayment(paymentId: number, adminId: number, status: string, notes?: string): Promise<Payment> {
       const [payment] = await db
         .update(payments)
-        .set({ status: status, verifiedBy: adminId, verificationNotes: notes })
+        .set({ 
+          status: status, 
+          verifiedBy: adminId, 
+          notes: notes,
+          verifiedAt: new Date()
+        })
         .where(eq(payments.id, paymentId))
         .returning();
       if (!payment) {
