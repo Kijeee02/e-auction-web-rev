@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { CreditCard, Upload } from "lucide-react";
+import { CreditCard, Upload, X, Image } from "lucide-react";
 import type { Auction } from "@shared/schema";
 
 interface PaymentFormProps {
@@ -19,6 +19,7 @@ interface PaymentFormProps {
 
 export default function PaymentForm({ auction, onPaymentSubmitted }: PaymentFormProps) {
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     paymentMethod: "",
     bankName: "",
@@ -26,11 +27,64 @@ export default function PaymentForm({ auction, onPaymentSubmitted }: PaymentForm
     accountName: "",
     paymentProof: "",
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: "Error",
+          description: "File size must be less than 5MB",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Error",
+          description: "Please select an image file",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setSelectedFile(file);
+      
+      // Create preview URL
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+
+      // Convert to base64
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const base64 = e.target?.result as string;
+        setFormData(prev => ({ ...prev, paymentProof: base64 }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeFile = () => {
+    setSelectedFile(null);
+    setPreviewUrl("");
+    setFormData(prev => ({ ...prev, paymentProof: "" }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   const paymentMutation = useMutation({
     mutationFn: async (data: any) => {
       const res = await apiRequest("POST", "/api/payments", data);
-      if (!res.ok) throw new Error("Failed to submit payment");
+      if (!res.ok) {
+        const error = await res.text();
+        throw new Error(error || "Failed to submit payment");
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -40,10 +94,10 @@ export default function PaymentForm({ auction, onPaymentSubmitted }: PaymentForm
       });
       onPaymentSubmitted();
     },
-    onError: () => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: "Failed to submit payment information",
+        description: error.message || "Failed to submit payment information",
         variant: "destructive",
       });
     },
@@ -56,6 +110,15 @@ export default function PaymentForm({ auction, onPaymentSubmitted }: PaymentForm
       toast({
         title: "Error",
         description: "Please select a payment method",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.paymentProof) {
+      toast({
+        title: "Error",
+        description: "Please upload payment proof or provide image URL",
         variant: "destructive",
       });
       return;
@@ -142,20 +205,77 @@ export default function PaymentForm({ auction, onPaymentSubmitted }: PaymentForm
           )}
 
           <div>
-            <Label htmlFor="paymentProof">Payment Proof (Image URL)</Label>
-            <div className="flex space-x-2">
-              <Input
-                id="paymentProof"
-                value={formData.paymentProof}
-                onChange={(e) => setFormData(prev => ({ ...prev, paymentProof: e.target.value }))}
-                placeholder="https://example.com/proof.jpg"
-              />
-              <Button type="button" variant="outline" size="sm">
-                <Upload className="h-4 w-4" />
-              </Button>
+            <Label htmlFor="paymentProof">Payment Proof</Label>
+            <div className="space-y-2">
+              {/* File Upload */}
+              <div className="flex space-x-2">
+                <Input
+                  ref={fileInputRef}
+                  id="paymentProof"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {selectedFile ? "Change Image" : "Upload Image"}
+                </Button>
+                {selectedFile && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={removeFile}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Preview */}
+              {previewUrl && (
+                <div className="relative w-full max-w-xs">
+                  <img
+                    src={previewUrl}
+                    alt="Payment proof preview"
+                    className="w-full h-32 object-cover rounded-lg border"
+                  />
+                  <div className="absolute top-2 right-2">
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={removeFile}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* URL Input Alternative */}
+              <div className="relative">
+                <Input
+                  placeholder="Or paste image URL"
+                  value={formData.paymentProof.startsWith('data:') ? '' : formData.paymentProof}
+                  onChange={(e) => {
+                    setFormData(prev => ({ ...prev, paymentProof: e.target.value }));
+                    if (e.target.value && !e.target.value.startsWith('data:')) {
+                      setPreviewUrl(e.target.value);
+                      setSelectedFile(null);
+                    }
+                  }}
+                />
+              </div>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Upload your payment proof (receipt, screenshot, etc.)
+              Upload an image file (max 5MB) or paste an image URL. Supported formats: JPG, PNG, GIF
             </p>
           </div>
 

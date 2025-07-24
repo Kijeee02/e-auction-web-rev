@@ -118,6 +118,20 @@ export default function PaymentStatus({ auctionId }: PaymentStatusProps) {
             </div>
           )}
           
+          {payment.paymentProof && (
+            <div className="mt-3">
+              <span className="text-sm font-medium text-gray-700">Payment Proof:</span>
+              <div className="mt-2">
+                <img
+                  src={payment.paymentProof}
+                  alt="Payment proof"
+                  className="max-w-xs h-32 object-cover rounded-lg border cursor-pointer"
+                  onClick={() => window.open(payment.paymentProof, '_blank')}
+                />
+              </div>
+            </div>
+          )}
+
           {payment.notes && (
             <div className="mt-3 p-3 bg-gray-50 rounded-lg">
               <span className="text-sm font-medium text-gray-700">Admin Notes:</span>

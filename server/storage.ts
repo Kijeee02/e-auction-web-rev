@@ -67,11 +67,15 @@ export interface IStorage {
   removeFromWatchlist(userId: number, auctionId: number): Promise<void>;
   getUserWatchlist(userId: number): Promise<AuctionWithDetails[]>;
 
-    // Payments
-    getPaymentsForUser(userId: number): Promise<Payment[]>;
-    createPayment(payment: InsertPayment): Promise<Payment>;
-    updatePayment(id: number, updates: Partial<Payment>): Promise<Payment | undefined>;
-    getPayment(id: number): Promise<Payment | undefined>;
+  // Payments
+  getPaymentsForUser(userId: number): Promise<Payment[]>;
+  getUserPayments(userId: number): Promise<Payment[]>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  updatePayment(id: number, updates: Partial<Payment>): Promise<Payment | undefined>;
+  getPayment(id: number): Promise<Payment | undefined>;
+  getPaymentByAuctionId(auctionId: number): Promise<Payment | undefined>;
+  getAllPendingPayments(): Promise<(Payment & { auction?: Auction; winner?: User })[]>;
+  verifyPayment(paymentId: number, adminId: number, status: string, notes?: string): Promise<Payment>;
 
   // Session store
   sessionStore: any;
@@ -549,6 +553,10 @@ export class DatabaseStorage implements IStorage {
         return db.select().from(payments).where(eq(payments.userId, userId));
     }
 
+    async getUserPayments(userId: number): Promise<Payment[]> {
+      return db.select().from(payments).where(eq(payments.userId, userId));
+    }
+
     async createPayment(payment: InsertPayment): Promise<Payment> {
         const [newPayment] = await db.insert(payments).values(payment).returning();
         return newPayment;
@@ -566,6 +574,42 @@ export class DatabaseStorage implements IStorage {
     async getPayment(id: number): Promise<Payment | undefined> {
         const [payment] = await db.select().from(payments).where(eq(payments.id, id));
         return payment || undefined;
+    }
+
+    async getPaymentByAuctionId(auctionId: number): Promise<Payment | undefined> {
+      const [payment] = await db.select().from(payments).where(eq(payments.auctionId, auctionId));
+      return payment || undefined;
+    }
+
+    async getAllPendingPayments(): Promise<(Payment & { auction?: Auction; winner?: User })[]> {
+      const results = await db
+        .select({
+          payment: payments,
+          auction: auctions,
+          winner: users,
+        })
+        .from(payments)
+        .leftJoin(auctions, eq(payments.auctionId, auctions.id))
+        .leftJoin(users, eq(auctions.winnerId, users.id))
+        .where(eq(payments.status, "pending"));
+
+      return results.map((result) => ({
+        ...result.payment,
+        auction: result.auction,
+        winner: result.winner,
+      }));
+    }
+
+    async verifyPayment(paymentId: number, adminId: number, status: string, notes?: string): Promise<Payment> {
+      const [payment] = await db
+        .update(payments)
+        .set({ status: status, verifiedBy: adminId, verificationNotes: notes })
+        .where(eq(payments.id, paymentId))
+        .returning();
+      if (!payment) {
+        throw new Error(`Payment with id ${paymentId} not found`);
+      }
+      return payment;
     }
 
   async checkAndEndExpiredAuctions(): Promise<number> {
