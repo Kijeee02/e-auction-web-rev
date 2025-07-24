@@ -38,26 +38,15 @@ export default function AdminPanel() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showCategoryModal, setShowCategoryModal] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<any>(null);
   const [newAuction, setNewAuction] = useState({
     title: "",
     description: "",
+    startingPrice: "",
+    endTime: "",
     condition: "",
     location: "",
     categoryId: "",
     imageUrl: "",
-    startingPrice: "",
-    endTime: "",
-    productionYear: "",
-    plateNumber: "",
-    chassisNumber: "",
-    engineNumber: "",
-    documentInfo: "",
-  });
-  const [newCategory, setNewCategory] = useState({
-    name: "",
-    description: "",
   });
 
   const {
@@ -69,16 +58,6 @@ export default function AdminPanel() {
     queryFn: async () => {
       const res = await fetch("/api/auctions");
       if (!res.ok) throw new Error("Gagal memuat lelang");
-      return res.json();
-    },
-  });
-
-  // Fetch categories
-  const { data: categories = [] } = useQuery({
-    queryKey: ["/api/categories"],
-    queryFn: async () => {
-      const res = await fetch("/api/categories");
-      if (!res.ok) throw new Error("Failed to fetch categories");
       return res.json();
     },
   });
@@ -107,57 +86,6 @@ export default function AdminPanel() {
     },
   });
 
-    // Category mutations
-    const createCategoryMutation = useMutation({
-      mutationFn: async (categoryData: any) => {
-        const res = await apiRequest("POST", "/api/categories", categoryData);
-        if (!res.ok) throw new Error("Failed to create category");
-        return res.json();
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-        toast({ title: "Sukses", description: "Kategori berhasil dibuat" });
-        setShowCategoryModal(false);
-        setNewCategory({ name: "", description: "" });
-      },
-      onError: () => {
-        toast({ title: "Gagal", description: "Pembuatan kategori gagal", variant: "destructive" });
-      },
-    });
-  
-    const updateCategoryMutation = useMutation({
-      mutationFn: async ({ id, data }: { id: number; data: any }) => {
-        const res = await apiRequest("PUT", `/api/categories/${id}`, data);
-        if (!res.ok) throw new Error("Failed to update category");
-        return res.json();
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-        toast({ title: "Sukses", description: "Kategori berhasil diubah" });
-        setShowCategoryModal(false);
-        setEditingCategory(null);
-        setNewCategory({ name: "", description: "" });
-      },
-      onError: () => {
-        toast({ title: "Gagal", description: "Update kategori gagal", variant: "destructive" });
-      },
-    });
-  
-    const deleteCategoryMutation = useMutation({
-      mutationFn: async (id: number) => {
-        const res = await apiRequest("DELETE", `/api/categories/${id}`);
-        if (!res.ok) throw new Error("Failed to delete category");
-        return res.json();
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
-        toast({ title: "Sukses", description: "Kategori berhasil dihapus" });
-      },
-      onError: () => {
-        toast({ title: "Gagal", description: "Penghapusan kategori gagal", variant: "destructive" });
-      },
-    });
-
   // Redirect if not admin
   if (user?.role !== "admin") {
     return (
@@ -183,7 +111,7 @@ export default function AdminPanel() {
     queryFn: async () => {
       const res = await fetch("/api/admin/stats");
       if (!res.ok) throw new Error("Gagal mengambil statistik admin");
-      return res.json();
+      return await res.json();
     },
   });
 
@@ -736,63 +664,6 @@ export default function AdminPanel() {
           </Card>
         </Tabs>
 
-          {/* Category Modal */}
-          {showCategoryModal && (
-            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-              <div className="bg-white p-6 rounded shadow w-full max-w-md">
-                <h2 className="text-lg font-bold mb-4">
-                  {editingCategory ? "Edit Kategori" : "Tambah Kategori"}
-                </h2>
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (editingCategory) {
-                      updateCategoryMutation.mutate({
-                        id: editingCategory.id,
-                        data: newCategory,
-                      });
-                    } else {
-                      createCategoryMutation.mutate(newCategory);
-                    }
-                  }}
-                  className="space-y-4"
-                >
-                  <Input
-                    placeholder="Nama Kategori"
-                    value={newCategory.name}
-                    onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                    required
-                  />
-                  <Input
-                    placeholder="Deskripsi"
-                    value={newCategory.description}
-                    onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                  />
-                  <div className="flex justify-end space-x-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowCategoryModal(false);
-                        setEditingCategory(null);
-                        setNewCategory({ name: "", description: "" });
-                      }}
-                    >
-                      Batal
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
-                    >
-                      {editingCategory ? "Update" : "Simpan"}
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-        {/* Add Auction Modal */}
         {showAddModal && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
             <div className="bg-white p-6 rounded shadow w-full max-w-md">
@@ -825,24 +696,13 @@ export default function AdminPanel() {
                   onChange={(e) => setNewAuction({ ...newAuction, categoryId: e.target.value })}
                 >
                   <option value="">-- Pilih Kategori --</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
+                  <option value="1">Elektronik</option>
+                  <option value="2">Fashion</option>
+                  <option value="3">Kendaraan</option>
                 </select>
                 <Input placeholder="URL Gambar (opsional)" value={newAuction.imageUrl} onChange={(e) => setNewAuction({ ...newAuction, imageUrl: e.target.value })} />
                 <Input placeholder="Harga Awal" type="number" value={newAuction.startingPrice} onChange={(e) => setNewAuction({ ...newAuction, startingPrice: e.target.value })} />
                 <Input placeholder="Waktu Berakhir" type="datetime-local" value={newAuction.endTime} onChange={(e) => setNewAuction({ ...newAuction, endTime: e.target.value })} />
-                {newAuction.categoryId === "1" || newAuction.categoryId === "2" ? (
-                  <>
-                    <Input placeholder="Tahun Produksi" value={newAuction.productionYear} onChange={(e) => setNewAuction({ ...newAuction, productionYear: e.target.value })} />
-                    <Input placeholder="No Polisi" value={newAuction.plateNumber} onChange={(e) => setNewAuction({ ...newAuction, plateNumber: e.target.value })} />
-                    <Input placeholder="No Rangka" value={newAuction.chassisNumber} onChange={(e) => setNewAuction({ ...newAuction, chassisNumber: e.target.value })} />
-                    <Input placeholder="No Mesin" value={newAuction.engineNumber} onChange={(e) => setNewAuction({ ...newAuction, engineNumber: e.target.value })} />
-                    <Input placeholder="Keterangan Surat" value={newAuction.documentInfo} onChange={(e) => setNewAuction({ ...newAuction, documentInfo: e.target.value })} />
-                  </>
-                ) : null}
                 <div className="flex justify-end space-x-2">
                   <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>Batal</Button>
                   <Button type="submit" disabled={createAuctionMutation.isPending}>Simpan</Button>

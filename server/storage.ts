@@ -34,8 +34,6 @@ export interface IStorage {
   // Categories
   getCategories(): Promise<Category[]>;
   createCategory(category: InsertCategory): Promise<Category>;
-  updateCategory(id: number, updates: Partial<Category>): Promise<Category | undefined>;
-  deleteCategory(id: number): Promise<boolean>;
 
   // Auctions
   getAuctions(filters?: {
@@ -150,20 +148,6 @@ export class DatabaseStorage implements IStorage {
       .values(category)
       .returning();
     return newCategory;
-  }
-
-  async updateCategory(id: number, updates: Partial<Category>): Promise<Category | undefined> {
-    const [category] = await db
-      .update(categories)
-      .set(updates)
-      .where(eq(categories.id, id))
-      .returning();
-    return category || undefined;
-  }
-
-  async deleteCategory(id: number): Promise<boolean> {
-    const result = await db.delete(categories).where(eq(categories.id, id)).returning();
-    return result.length > 0;
   }
 
   async getAuctions(filters?: {

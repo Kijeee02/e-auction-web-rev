@@ -53,11 +53,6 @@ export function initializeDatabase() {
           category_id INTEGER NOT NULL REFERENCES categories(id),
           winner_id INTEGER REFERENCES users(id),
           archived INTEGER NOT NULL DEFAULT 0,
-          production_year INTEGER,
-          plate_number TEXT,
-          chassis_number TEXT,
-          engine_number TEXT,
-          document_info TEXT,
           created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
       CREATE TABLE IF NOT EXISTS bids (

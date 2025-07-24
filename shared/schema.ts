@@ -41,12 +41,6 @@ export const auctions = sqliteTable("auctions", {
   categoryId: integer("category_id").references(() => categories.id).notNull(),
   winnerId: integer("winner_id").references(() => users.id),
   archived: integer("archived", { mode: "boolean" }).notNull().default(false),
-  // Vehicle-specific fields
-  productionYear: integer("production_year"),
-  plateNumber: text("plate_number"),
-  chassisNumber: text("chassis_number"),
-  engineNumber: text("engine_number"),
-  documentInfo: text("document_info"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
@@ -149,6 +143,7 @@ export const insertAuctionSchema = createInsertSchema(auctions)
       if (typeof arg === "string") return new Date(arg);
       return arg;
     }, z.date().optional()),
+    // ...field lain tetap seperti tadi
     startingPrice: z.number().min(0, "Harga awal harus lebih dari 0"),
     currentPrice: z.number().default(0),
     condition: z.enum(["new", "like_new", "good", "fair"]),
@@ -158,12 +153,6 @@ export const insertAuctionSchema = createInsertSchema(auctions)
     description: z.string(),
     location: z.string(),
     categoryId: z.number(),
-    // Vehicle-specific fields (optional)
-    productionYear: z.number().optional(),
-    plateNumber: z.string().optional(),
-    chassisNumber: z.string().optional(),
-    engineNumber: z.string().optional(),
-    documentInfo: z.string().optional(),
   });
 
 
