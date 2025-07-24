@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeDatabase } from "./db";
+import { storage } from "./storage";
 import router from "./routes";
 
 
@@ -44,6 +45,29 @@ app.use((req, res, next) => {
 (async () => {
   // Initialize SQLite database
   initializeDatabase();
+
+  // Start background task to check expired auctions every 60 seconds
+  const startBackgroundTasks = () => {
+    const checkExpiredAuctions = async () => {
+      try {
+        const endedCount = await storage.checkAndEndExpiredAuctions();
+        if (endedCount > 0) {
+          log(`[Background] Automatically ended ${endedCount} expired auctions`);
+        }
+      } catch (error) {
+        console.error("[Background] Error checking expired auctions:", error);
+      }
+    };
+
+    // Run immediately on startup
+    checkExpiredAuctions();
+    
+    // Then run every 60 seconds
+    setInterval(checkExpiredAuctions, 60000);
+    log("[Background] Started automatic auction expiry checker (every 60 seconds)");
+  };
+
+  startBackgroundTasks();
 
   const server = await registerRoutes(app);
 

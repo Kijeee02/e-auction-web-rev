@@ -67,28 +67,25 @@ export default function AuctionDetail() {
 
   // Poll bids every 5s if auction is active and check for expiration
   useEffect(() => {
-    if (!auction || auction.status !== "active") return;
+    if (!auction) return;
     
     const interval = setInterval(() => {
       refetchBids();
       
-      // Check if auction has expired
+      // Always refresh auction data to get latest status
+      queryClient.invalidateQueries({ queryKey: ["/api/auctions", id] });
+      
+      // Check if auction has expired client-side
       const now = new Date();
       const endTime = new Date(auction.endTime);
       
-      if (now >= endTime) {
-        // Refetch auction data to get updated status
-        queryClient.invalidateQueries({ queryKey: ["/api/auctions", id] });
-        
-        // If there are bids, auction should end automatically
-        if (bids.length > 0) {
-          console.log("Auction has expired with bids, should auto-end");
-        }
+      if (now >= endTime && auction.status === "active") {
+        console.log("Auction has expired, waiting for server to auto-end it");
       }
     }, 5000);
     
     return () => clearInterval(interval);
-  }, [auction, refetchBids, bids, id, queryClient]);
+  }, [auction, refetchBids, id, queryClient]);
 
   if (loadingAuction) {
     return <div className="min-h-screen bg-gray-50">Loading...</div>;

@@ -12,10 +12,15 @@ interface AuctionCardProps {
 }
 
 export default function AuctionCard({ auction }: AuctionCardProps) {
-  const currentPrice = parseFloat(auction.currentPrice);
-  const startingPrice = parseFloat(auction.startingPrice);
-  const isActive = auction.status === "active" && new Date() < new Date(auction.endTime);
-  const bidCount = auction.bids?.length || 0;
+  const currentPrice = Number(auction.currentPrice) || 0;
+  const startingPrice = Number(auction.startingPrice) || 0;
+  const now = new Date();
+  const endTime = new Date(auction.endTime);
+  const isActive = auction.status === "active" && now < endTime;
+  const hasExpired = now >= endTime;
+
+  // Show "Berakhir" status if auction has expired, regardless of database status
+  const displayStatus = hasExpired && auction.status === "active" ? "ended" : auction.status;
 
   return (
     <Card className="auction-card">
@@ -31,18 +36,18 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
           </Badge>
         </div>
       </div>
-      
+
       <CardContent className="p-6">
         <div className="flex justify-between items-start mb-3">
           <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
             {auction.title}
           </h3>
         </div>
-        
+
         <p className="text-gray-600 text-sm mb-4 line-clamp-2">
           {auction.description}
         </p>
-        
+
         <div className="space-y-3">
           <div className="flex justify-between items-center">
             <span className="text-gray-600 text-sm">Harga Awal</span>
@@ -50,14 +55,14 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
               Rp {startingPrice.toLocaleString('id-ID')}
             </span>
           </div>
-          
+
           <div className="flex justify-between items-center">
             <span className="text-gray-600 text-sm">Penawaran Tertinggi</span>
             <span className="text-2xl font-bold text-primary">
               Rp {currentPrice.toLocaleString('id-ID')}
             </span>
           </div>
-          
+
           {isActive && (
             <div className="flex justify-between items-center">
               <span className="text-gray-600 text-sm flex items-center">
@@ -80,9 +85,9 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
               {auction.location}
             </span>
           </div>
-          
+
           <VehicleInfoModal auction={auction} />
-          
+
           <Link href={`/auction/${auction.id}`}>
             <Button className="w-full bg-primary text-white hover:bg-blue-700 font-semibold">
               {isActive ? "Ikut Lelang" : "Lihat Detail"}

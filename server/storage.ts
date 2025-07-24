@@ -67,6 +67,9 @@ export interface IStorage {
 
   // Session store
   sessionStore: any;
+
+  // Automatic expiry checking
+  checkAndEndExpiredAuctions(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -532,6 +535,53 @@ export class DatabaseStorage implements IStorage {
     );
 
     return auctionsWithBids;
+  }
+
+  async checkAndEndExpiredAuctions(): Promise<number> {
+    try {
+      const now = new Date();
+      
+      // Find all active auctions that have expired
+      const expiredAuctions = await db
+        .select()
+        .from(auctions)
+        .where(and(
+          eq(auctions.status, "active"),
+          sql`${auctions.endTime} <= ${now.toISOString()}`
+        ));
+
+      console.log(`[checkAndEndExpiredAuctions] Found ${expiredAuctions.length} expired auctions`);
+
+      let endedCount = 0;
+
+      for (const auction of expiredAuctions) {
+        try {
+          // Get highest bid for this auction
+          const highestBid = await this.getHighestBid(auction.id);
+          const winnerId = highestBid?.bidderId || null;
+
+          // Update auction to ended status
+          await db
+            .update(auctions)
+            .set({
+              status: "ended",
+              winnerId: winnerId
+            })
+            .where(eq(auctions.id, auction.id));
+
+          console.log(`[checkAndEndExpiredAuctions] Ended auction ${auction.id}, winner: ${winnerId || 'none'}`);
+          endedCount++;
+        } catch (error) {
+          console.error(`[checkAndEndExpiredAuctions] Error ending auction ${auction.id}:`, error);
+        }
+      }
+
+      console.log(`[checkAndEndExpiredAuctions] Successfully ended ${endedCount} auctions`);
+      return endedCount;
+    } catch (error) {
+      console.error("[checkAndEndExpiredAuctions] Error:", error);
+      throw error;
+    }
   }
 }
 
