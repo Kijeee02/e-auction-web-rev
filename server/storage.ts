@@ -16,7 +16,7 @@ import {
   type UserStats
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, count, sql } from "drizzle-orm";
+import { eq, desc, and, gte, count, sql, or, like } from "drizzle-orm";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 
@@ -40,12 +40,17 @@ export interface IStorage {
     status?: string;
     categoryId?: number;
     search?: string;
+    includeArchived?: boolean;
   }): Promise<AuctionWithDetails[]>;
   getAuction(id: number): Promise<AuctionWithDetails | undefined>;
   createAuction(auction: InsertAuction): Promise<Auction>;
   updateAuction(id: number, updates: Partial<Auction>): Promise<Auction | undefined>;
   deleteAuction(id: number): Promise<boolean>;
   endAuction(id: number): Promise<Auction | undefined>;
+  archiveAuction(auctionId: number): Promise<AuctionWithDetails | undefined>;
+  unarchiveAuction(auctionId: number): Promise<AuctionWithDetails | undefined>;
+  getArchivedAuctions(): Promise<AuctionWithDetails[]>;
+  getWonAuctions(userId: number): Promise<AuctionWithDetails[]>;
 
   // Bids
   getBidsForAuction(auctionId: number): Promise<(Bid & { bidder: User })[]>;
@@ -149,18 +154,8 @@ export class DatabaseStorage implements IStorage {
     status?: string;
     categoryId?: number;
     search?: string;
+    includeArchived?: boolean;
   }): Promise<AuctionWithDetails[]> {
-    const whereClauses = [];
-    if (filters?.status) {
-      whereClauses.push(eq(auctions.status, filters.status));
-    }
-    if (filters?.categoryId) {
-      whereClauses.push(eq(auctions.categoryId, filters.categoryId));
-    }
-    if (filters?.search) {
-      whereClauses.push(sql`title LIKE '%' || ${filters.search} || '%'`);
-    }
-
     let query = db
       .select({
         auction: auctions,
@@ -168,6 +163,25 @@ export class DatabaseStorage implements IStorage {
       })
       .from(auctions)
       .innerJoin(categories, eq(auctions.categoryId, categories.id));
+
+    const whereClauses = [];
+
+    // Exclude archived auctions by default
+    if (!filters?.includeArchived) {
+      whereClauses.push(eq(auctions.archived, false));
+    }
+
+    if (filters?.status) {
+      whereClauses.push(eq(auctions.status, filters.status));
+    }
+
+    if (filters?.categoryId) {
+      whereClauses.push(eq(auctions.categoryId, filters.categoryId));
+    }
+
+    if (filters?.search) {
+      whereClauses.push(sql`title LIKE '%' || ${filters.search} || '%'`);
+    }
 
     const results = await (
       whereClauses.length > 0
@@ -295,6 +309,78 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     return auction || undefined;
+  }
+
+  async archiveAuction(auctionId: number): Promise<AuctionWithDetails | undefined> {
+    await db
+      .update(auctions)
+      .set({ archived: true })
+      .where(eq(auctions.id, auctionId))
+      .returning();
+
+    return this.getAuction(auctionId);
+  }
+
+  async unarchiveAuction(auctionId: number): Promise<AuctionWithDetails | undefined> {
+    await db
+      .update(auctions)
+      .set({ archived: false })
+      .where(eq(auctions.id, auctionId))
+      .returning();
+
+    return this.getAuction(auctionId);
+  }
+
+  async getArchivedAuctions(): Promise<AuctionWithDetails[]> {
+    const results = await db
+      .select({
+        auction: auctions,
+        category: categories,
+      })
+      .from(auctions)
+      .innerJoin(categories, eq(auctions.categoryId, categories.id))
+      .where(eq(auctions.archived, true))
+      .orderBy(desc(auctions.createdAt));
+
+    const auctionsWithBids = await Promise.all(
+      results.map(async (result) => {
+        const auctionBids = await this.getBidsForAuction(result.auction.id);
+        return {
+          ...result.auction,
+          category: result.category,
+          bids: auctionBids,
+          _count: { bids: auctionBids.length },
+        };
+      })
+    );
+
+    return auctionsWithBids;
+  }
+
+  async getWonAuctions(userId: number): Promise<AuctionWithDetails[]> {
+    const results = await db
+      .select({
+        auction: auctions,
+        category: categories,
+      })
+      .from(auctions)
+      .innerJoin(categories, eq(auctions.categoryId, categories.id))
+      .where(and(eq(auctions.winnerId, userId), eq(auctions.archived, false)))
+      .orderBy(desc(auctions.createdAt));
+
+    const auctionsWithBids = await Promise.all(
+      results.map(async (result) => {
+        const auctionBids = await this.getBidsForAuction(result.auction.id);
+        return {
+          ...result.auction,
+          category: result.category,
+          bids: auctionBids,
+          _count: { bids: auctionBids.length },
+        };
+      })
+    );
+
+    return auctionsWithBids;
   }
 
   async getBidsForAuction(auctionId: number): Promise<(Bid & { bidder: User })[]> {

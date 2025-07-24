@@ -212,7 +212,24 @@ export default function AuctionDetail() {
                 <Badge variant="secondary" className="text-lg px-4 py-2">
                   Lelang Telah Berakhir
                 </Badge>
-                {auction.winnerId && <p className="text-gray-600 mt-2">Dimenangkan oleh user_****{auction.winnerId}</p>}
+                {auction.winnerId && highestBid && (
+                  <Card className="mt-4 bg-green-50 border-green-200">
+                    <CardContent className="p-4 text-center">
+                      <h3 className="font-semibold text-green-800 mb-2">🏆 Pemenang Lelang</h3>
+                      <p className="text-green-700">
+                        <span className="font-medium">
+                          {highestBid.bidder?.firstName} {highestBid.bidder?.lastName}
+                        </span>
+                      </p>
+                      <p className="text-green-600 text-sm mt-1">
+                        Harga Final: Rp {Number(auction.currentPrice).toLocaleString('id-ID')}
+                      </p>
+                    </CardContent>
+                  </Card>
+                )}
+                {!auction.winnerId && (
+                  <p className="text-gray-600 mt-2">Tidak ada pemenang (tidak ada penawaran)</p>
+                )}
               </div>
             )}
 

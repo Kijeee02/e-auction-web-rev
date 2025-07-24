@@ -52,6 +52,7 @@ export function initializeDatabase() {
           end_time INTEGER NOT NULL,
           category_id INTEGER NOT NULL REFERENCES categories(id),
           winner_id INTEGER REFERENCES users(id),
+          archived INTEGER NOT NULL DEFAULT 0,
           created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
       CREATE TABLE IF NOT EXISTS bids (

@@ -177,6 +177,63 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.post("/api/auctions/:id/archive", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      const auction = await storage.archiveAuction(id);
+
+      if (!auction) {
+        return res.status(404).json({ message: "Auction not found" });
+      }
+
+      res.status(200).json({
+        message: "Auction archived successfully",
+        auction,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to archive auction" });
+    }
+  });
+
+  app.post("/api/auctions/:id/unarchive", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const id = parseInt(req.params.id);
+      const auction = await storage.unarchiveAuction(id);
+
+      if (!auction) {
+        return res.status(404).json({ message: "Auction not found" });
+      }
+
+      res.status(200).json({
+        message: "Auction unarchived successfully",
+        auction,
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to unarchive auction" });
+    }
+  });
+
+  app.get("/api/auctions/archived", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const archivedAuctions = await storage.getArchivedAuctions();
+      res.json(archivedAuctions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch archived auctions" });
+    }
+  });
+
   // Bids routes
 
   app.get("/api/auctions/:id/bids", async (req, res) => {
@@ -312,6 +369,19 @@ export function registerRoutes(app: Express): Server {
       res.json(watchlist);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch watchlist" });
+    }
+  });
+
+  app.get("/api/user/won-auctions", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const wonAuctions = await storage.getWonAuctions(req.user.id);
+      res.json(wonAuctions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch won auctions" });
     }
   });
 

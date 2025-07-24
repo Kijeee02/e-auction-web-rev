@@ -40,6 +40,7 @@ export const auctions = sqliteTable("auctions", {
   endTime: integer("end_time", { mode: "timestamp" }).notNull(),
   categoryId: integer("category_id").references(() => categories.id).notNull(),
   winnerId: integer("winner_id").references(() => users.id),
+  archived: integer("archived", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 

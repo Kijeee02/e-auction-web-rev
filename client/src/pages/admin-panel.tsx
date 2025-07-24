@@ -163,6 +163,28 @@ export default function AdminPanel() {
     },
   });
 
+  const archiveMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("POST", `/api/auctions/${id}/archive`);
+      if (!res.ok) throw new Error("Failed to archive auction");
+      return res.json?.() ?? true;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
+      toast({
+        title: "Success",
+        description: "Auction archived successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to archive auction",
+        variant: "destructive",
+      });
+    },
+  });
+
   const filteredAuctions = (auctions ?? []).filter(auction => {
     const matchesStatus = statusFilter === "all" || auction.status === statusFilter;
     const matchesSearch = !searchQuery ||
@@ -401,6 +423,15 @@ export default function AdminPanel() {
                                     End
                                   </Button>
                                 )}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={!auction.id || archiveMutation.isPending}
+                                  onClick={() => auction.id && archiveMutation.mutate(auction.id)}
+                                  title="Archive"
+                                >
+                                  Archive
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"

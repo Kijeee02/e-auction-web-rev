@@ -25,6 +25,16 @@ export default function UserDashboard() {
     queryKey: ["/api/user/watchlist"],
   });
 
+  const { data: wonAuctions = [] } = useQuery<AuctionWithDetails[]>({
+    queryKey: ["/api/user/won-auctions"],
+    queryFn: async () => {
+      const res = await fetch("/api/user/won-auctions");
+      if (!res.ok) throw new Error("Failed to fetch won auctions");
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
   // Filter active bids (auctions that are still active)
   const activeBids = userBids.filter(bid => 
     bid.auction.status === "active" && new Date() < new Date(bid.auction.endTime)
@@ -38,7 +48,7 @@ export default function UserDashboard() {
   const getBidStatus = (bid: Bid & { auction: any }) => {
     const currentPrice = parseFloat(bid.auction.currentPrice);
     const bidAmount = parseFloat(bid.amount);
-    
+
     if (currentPrice === bidAmount) {
       return { status: "winning", label: "Winning", variant: "default" as const };
     } else {
@@ -49,7 +59,7 @@ export default function UserDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Dashboard Saya</h1>
@@ -131,8 +141,9 @@ export default function UserDashboard() {
             <CardHeader>
               <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="active-bids">Penawaran Aktif</TabsTrigger>
-                <TabsTrigger value="history">Riwayat Lelang</TabsTrigger>
+                <TabsTrigger value="won">Lelang Dimenangkan</TabsTrigger>
                 <TabsTrigger value="watchlist">Watchlist</TabsTrigger>
+                <TabsTrigger value="history">Riwayat Lelang</TabsTrigger>
                 <TabsTrigger value="profile">Profil</TabsTrigger>
               </TabsList>
             </CardHeader>
