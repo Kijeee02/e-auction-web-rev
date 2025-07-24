@@ -26,7 +26,7 @@ import {
   ChevronRight
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { Auction } from "@shared/schema";
+import { Auction, Payment } from "@shared/schema";
 import { useLocation, useParams } from "wouter";
 import VehicleInfoModal from "@/components/vehicle-info-modal";
 import { Clock } from "lucide-react";
@@ -368,22 +368,20 @@ export default function AdminPanel() {
     navigate(`/admin/edit-auction/${id}`);
   };
 
-  const verifyPaymentMutation = useMutation(
-    async ({ paymentId, status, notes }: { paymentId: string; status: string; notes?: string }) => {
+  const verifyPaymentMutation = useMutation({
+    mutationFn: async ({ paymentId, status, notes }: { paymentId: string; status: string; notes?: string }) => {
       const res = await apiRequest("POST", `/api/admin/payments/${paymentId}/verify`, { status, notes });
       if (!res.ok) throw new Error("Failed to verify payment");
       return res.json();
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ["/api/admin/payments/pending"] });
-        toast({ title: "Success", description: "Payment verified successfully" });
-      },
-      onError: () => {
-        toast({ title: "Error", description: "Failed to verify payment", variant: "destructive" });
-      },
-    }
-  );
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/payments/pending"] });
+      toast({ title: "Success", description: "Payment verified successfully" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to verify payment", variant: "destructive" });
+    },
+  });
 
 
   return (
