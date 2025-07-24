@@ -473,7 +473,7 @@ export default function AdminPanel() {
         <Tabs defaultValue="auctions" className="w-full">
           <Card>
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-7">
                 <TabsTrigger value="auctions">Kelola Lelang</TabsTrigger>
                 <TabsTrigger value="categories">Kategori</TabsTrigger>
                 <TabsTrigger value="payments">Pembayaran</TabsTrigger>

@@ -617,21 +617,31 @@ export class DatabaseStorage implements IStorage {
     }
 
     async verifyPayment(paymentId: number, adminId: number, status: string, notes?: string): Promise<Payment> {
-      const now = new Date();
-      const [payment] = await db
-        .update(payments)
-        .set({ 
-          status: status, 
-          verifiedBy: adminId, 
-          notes: notes,
-          verifiedAt: Math.floor(now.getTime() / 1000) // Store as Unix timestamp
-        })
-        .where(eq(payments.id, paymentId))
-        .returning();
-      if (!payment) {
-        throw new Error(`Payment with id ${paymentId} not found`);
+      try {
+        const now = new Date();
+        console.log(`[verifyPayment] Updating payment ${paymentId} with status ${status}`);
+        
+        const [payment] = await db
+          .update(payments)
+          .set({ 
+            status: status, 
+            verifiedBy: adminId, 
+            notes: notes || null,
+            verifiedAt: now // Store as Date object
+          })
+          .where(eq(payments.id, paymentId))
+          .returning();
+          
+        if (!payment) {
+          throw new Error(`Payment with id ${paymentId} not found`);
+        }
+        
+        console.log(`[verifyPayment] Payment ${paymentId} updated successfully:`, payment);
+        return payment;
+      } catch (error) {
+        console.error(`[verifyPayment] Error updating payment ${paymentId}:`, error);
+        throw error;
       }
-      return payment;
     }
 
   async checkAndEndExpiredAuctions(): Promise<number> {
