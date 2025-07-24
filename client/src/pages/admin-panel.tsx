@@ -1236,16 +1236,10 @@ This code adds a button to manually check expired auctions and integrates automa
                         onChange={(e) => setNewAuction({ ...newAuction, engineNumber: e.target.value })}
                       />
                       <textarea
-                        placeholder="Keterangan Surat (opsional)"
-                        value={newAuction.documentInfo}
-                        onChange={(e) => setNewAuction({ ...newAuction, documentInfo: e.target.value })}
-                        className="w-full p-2 border border-gray-300 rounded-md min-h-[80px] resize-vertical"
-                      />
-                      <textarea
                         placeholder="Keterangan Surat (STNK/BPKB/Kelengkapan dokumen)"
                         value={newAuction.documentInfo}
                         onChange={(e) => setNewAuction({ ...newAuction, documentInfo: e.target.value })}
-                        className="w-full border rounded p-2 min-h-[100px]"
+                        className="w-full p-2 border border-gray-300 rounded-md min-h-[100px] resize-vertical"
                       />
                     </>
                   ) : (
