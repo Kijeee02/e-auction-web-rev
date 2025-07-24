@@ -199,6 +199,19 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.get("/api/auctions/archived", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const archivedAuctions = await storage.getArchivedAuctions();
+      res.json(archivedAuctions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch archived auctions" });
+    }
+  });
+
   app.post("/api/auctions/:id/unarchive", async (req, res) => {
     try {
       if (!req.isAuthenticated() || req.user.role !== "admin") {
@@ -218,19 +231,6 @@ export function registerRoutes(app: Express): Server {
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to unarchive auction" });
-    }
-  });
-
-  app.get("/api/auctions/archived", async (req, res) => {
-    try {
-      if (!req.isAuthenticated() || req.user.role !== "admin") {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
-      const archivedAuctions = await storage.getArchivedAuctions();
-      res.json(archivedAuctions);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch archived auctions" });
     }
   });
 
