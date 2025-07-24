@@ -14,6 +14,7 @@ interface AuctionCardProps {
 export default function AuctionCard({ auction }: AuctionCardProps) {
   const currentPrice = Number(auction.currentPrice) || 0;
   const startingPrice = Number(auction.startingPrice) || 0;
+  const bidCount = auction._count?.bids || 0;
   const now = new Date();
   const endTime = new Date(auction.endTime);
   const isActive = auction.status === "active" && now < endTime;
