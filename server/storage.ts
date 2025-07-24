@@ -331,32 +331,6 @@ export class DatabaseStorage implements IStorage {
     return this.getAuction(auctionId);
   }
 
-  async getArchivedAuctions(): Promise<AuctionWithDetails[]> {
-    const results = await db
-      .select({
-        auction: auctions,
-        category: categories,
-      })
-      .from(auctions)
-      .innerJoin(categories, eq(auctions.categoryId, categories.id))
-      .where(eq(auctions.archived, true))
-      .orderBy(desc(auctions.createdAt));
-
-    const auctionsWithBids = await Promise.all(
-      results.map(async (result) => {
-        const auctionBids = await this.getBidsForAuction(result.auction.id);
-        return {
-          ...result.auction,
-          category: result.category,
-          bids: auctionBids,
-          _count: { bids: auctionBids.length },
-        };
-      })
-    );
-
-    return auctionsWithBids;
-  }
-
   async getWonAuctions(userId: number): Promise<AuctionWithDetails[]> {
     const results = await db
       .select({
@@ -424,36 +398,6 @@ export class DatabaseStorage implements IStorage {
       ...result.bid,
       bidder: result.bidder,
     }));
-  }
-
-  async archiveAuction(id: number): Promise<Auction | null> {
-    try {
-      const result = await db
-        .update(auctions)
-        .set({ archived: true })
-        .where(eq(auctions.id, id))
-        .returning();
-      
-      return result[0] || null;
-    } catch (error) {
-      console.error("Error archiving auction:", error);
-      return null;
-    }
-  }
-
-  async unarchiveAuction(id: number): Promise<Auction | null> {
-    try {
-      const result = await db
-        .update(auctions)
-        .set({ archived: false })
-        .where(eq(auctions.id, id))
-        .returning();
-      
-      return result[0] || null;
-    } catch (error) {
-      console.error("Error unarchiving auction:", error);
-      return null;
-    }
   }
 
   async getUserBids(userId: number): Promise<(Bid & { auction: Auction })[]> {
