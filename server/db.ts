@@ -76,20 +76,13 @@ export function initializeDatabase() {
       );
     `);
 
-    // Insert default categories
-    const categoriesExist = sqlite.prepare('SELECT COUNT(*) as count FROM categories').get() as { count: number };
-    if (categoriesExist.count === 0) {
-      sqlite.exec(`
-        INSERT INTO categories (name, description) VALUES
-        ('Motor', 'Sepeda motor bekas'),
-        ('Mobil', 'Mobil bekas'),
-        ('Elektronik', 'Perangkat elektronik dan gadget'),
-        ('Rumah & Tangan', 'Furniture dan peralatan rumah'),
-        ('Fashion', 'Pakaian dan aksesoris'),
-        ('Hobi & Koleksi', 'Barang koleksi dan hobi'),
-        ('Olahraga', 'Peralatan olahraga');
-      `);
-    }
+    // Reset categories to only Motor and Mobil
+    sqlite.exec(`DELETE FROM categories`);
+    sqlite.exec(`
+      INSERT INTO categories (name, description) VALUES
+      ('Motor', 'Sepeda motor bekas'),
+      ('Mobil', 'Mobil bekas');
+    `);
 
     console.log('✓ Database initialized successfully');
   } catch (error) {

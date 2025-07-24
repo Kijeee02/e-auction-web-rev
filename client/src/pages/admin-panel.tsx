@@ -891,8 +891,8 @@ export default function AdminPanel() {
 
         {/* Add Auction Modal */}
         {showAddModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded shadow w-full max-w-md">
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-6 rounded shadow w-full max-w-4xl max-h-[90vh] overflow-y-auto">
               <h2 className="text-lg font-bold mb-4">Tambah Lelang</h2>
               <form
                 onSubmit={(e) => {
@@ -910,7 +910,7 @@ export default function AdminPanel() {
                     minimumIncrement: 50000,
                   };
 
-                  // Add vehicle-specific fields if category is Motor (1) or Mobil (2)
+                  // Add vehicle-specific fields for Motor and Mobil
                   if (newAuction.categoryId === "1" || newAuction.categoryId === "2") {
                     Object.assign(auctionData, {
                       productionYear: newAuction.productionYear ? parseInt(newAuction.productionYear) : undefined,
@@ -923,64 +923,174 @@ export default function AdminPanel() {
 
                   createAuctionMutation.mutate(auctionData);
                 }}
-                className="space-y-4"
+                className="grid grid-cols-1 lg:grid-cols-2 gap-6"
               >
-                <Input placeholder="Judul Lelang" value={newAuction.title} onChange={(e) => setNewAuction({ ...newAuction, title: e.target.value })} />
-                <Input placeholder="Deskripsi" value={newAuction.description} onChange={(e) => setNewAuction({ ...newAuction, description: e.target.value })} />
-                <Input placeholder="Kondisi" value={newAuction.condition} onChange={(e) => setNewAuction({ ...newAuction, condition: e.target.value })} />
-                <Input placeholder="Lokasi" value={newAuction.location} onChange={(e) => setNewAuction({ ...newAuction, location: e.target.value })} />
-                <select
-                  value={newAuction.categoryId}
-                  onChange={(e) => setNewAuction({ ...newAuction, categoryId: e.target.value })}
-                  className="w-full border rounded p-2"
-                  required
-                >
-                  <option value="">-- Pilih Kategori --</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-                <Input placeholder="URL Gambar (opsional)" value={newAuction.imageUrl} onChange={(e) => setNewAuction({ ...newAuction, imageUrl: e.target.value })} />
-                <Input placeholder="Harga Awal" type="number" value={newAuction.startingPrice} onChange={(e) => setNewAuction({ ...newAuction, startingPrice: e.target.value })} required />
-                <Input placeholder="Waktu Berakhir" type="datetime-local" value={newAuction.endTime} onChange={(e) => setNewAuction({ ...newAuction, endTime: e.target.value })} required />
-                
-                {/* Vehicle specific fields for Motor (id: 1) and Mobil (id: 2) */}
-                {(newAuction.categoryId === "1" || newAuction.categoryId === "2") && (
-                  <div className="space-y-4 border-t pt-4">
-                    <h4 className="font-medium text-gray-900">Informasi Kendaraan</h4>
-                    <Input 
-                      placeholder="Tahun Produksi" 
-                      type="number"
-                      value={newAuction.productionYear} 
-                      onChange={(e) => setNewAuction({ ...newAuction, productionYear: e.target.value })} 
+                {/* Left Column - Basic Info */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-gray-900 border-b pb-2">Informasi Dasar</h3>
+                  <Input 
+                    placeholder="Judul Lelang" 
+                    value={newAuction.title} 
+                    onChange={(e) => setNewAuction({ ...newAuction, title: e.target.value })} 
+                    required
+                  />
+                  <textarea
+                    placeholder="Deskripsi"
+                    value={newAuction.description}
+                    onChange={(e) => setNewAuction({ ...newAuction, description: e.target.value })}
+                    className="w-full border rounded p-2 min-h-[80px]"
+                    required
+                  />
+                  <select
+                    value={newAuction.condition}
+                    onChange={(e) => setNewAuction({ ...newAuction, condition: e.target.value })}
+                    className="w-full border rounded p-2"
+                    required
+                  >
+                    <option value="">-- Pilih Kondisi --</option>
+                    <option value="new">Baru</option>
+                    <option value="like_new">Seperti Baru</option>
+                    <option value="good">Baik</option>
+                    <option value="fair">Cukup</option>
+                  </select>
+                  <Input 
+                    placeholder="Lokasi" 
+                    value={newAuction.location} 
+                    onChange={(e) => setNewAuction({ ...newAuction, location: e.target.value })} 
+                    required
+                  />
+                  <select
+                    value={newAuction.categoryId}
+                    onChange={(e) => setNewAuction({ ...newAuction, categoryId: e.target.value })}
+                    className="w-full border rounded p-2"
+                    required
+                  >
+                    <option value="">-- Pilih Kategori --</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  
+                  {/* File Upload for Image */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">Upload Gambar</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          // For now, we'll create a temporary URL for preview
+                          // In production, you'd upload to a file storage service
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            setNewAuction({ ...newAuction, imageUrl: event.target?.result as string });
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="w-full border rounded p-2"
                     />
-                    <Input 
-                      placeholder="No Polisi" 
-                      value={newAuction.plateNumber} 
-                      onChange={(e) => setNewAuction({ ...newAuction, plateNumber: e.target.value })} 
-                    />
-                    <Input 
-                      placeholder="No Rangka" 
-                      value={newAuction.chassisNumber} 
-                      onChange={(e) => setNewAuction({ ...newAuction, chassisNumber: e.target.value })} 
-                    />
-                    <Input 
-                      placeholder="No Mesin" 
-                      value={newAuction.engineNumber} 
-                      onChange={(e) => setNewAuction({ ...newAuction, engineNumber: e.target.value })} 
-                    />
-                    <Input 
-                      placeholder="Keterangan Surat (STNK/BPKB)" 
-                      value={newAuction.documentInfo} 
-                      onChange={(e) => setNewAuction({ ...newAuction, documentInfo: e.target.value })} 
-                    />
+                    {newAuction.imageUrl && (
+                      <div className="mt-2">
+                        <img 
+                          src={newAuction.imageUrl} 
+                          alt="Preview" 
+                          className="w-32 h-32 object-cover rounded border"
+                        />
+                      </div>
+                    )}
                   </div>
-                )}
-                <div className="flex justify-end space-x-2">
-                  <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>Batal</Button>
-                  <Button type="submit" disabled={createAuctionMutation.isPending}>Simpan</Button>
+                  
+                  <Input 
+                    placeholder="Harga Awal" 
+                    type="number" 
+                    value={newAuction.startingPrice} 
+                    onChange={(e) => setNewAuction({ ...newAuction, startingPrice: e.target.value })} 
+                    required 
+                  />
+                  <Input 
+                    placeholder="Waktu Berakhir" 
+                    type="datetime-local" 
+                    value={newAuction.endTime} 
+                    onChange={(e) => setNewAuction({ ...newAuction, endTime: e.target.value })} 
+                    required 
+                  />
+                </div>
+
+                {/* Right Column - Vehicle Specific Info */}
+                <div className="space-y-4">
+                  {(newAuction.categoryId === "1" || newAuction.categoryId === "2") ? (
+                    <>
+                      <h3 className="font-semibold text-gray-900 border-b pb-2">
+                        Informasi {newAuction.categoryId === "1" ? "Motor" : "Mobil"}
+                      </h3>
+                      <Input 
+                        placeholder="Tahun Produksi" 
+                        type="number"
+                        value={newAuction.productionYear} 
+                        onChange={(e) => setNewAuction({ ...newAuction, productionYear: e.target.value })} 
+                      />
+                      <Input 
+                        placeholder="No Polisi" 
+                        value={newAuction.plateNumber} 
+                        onChange={(e) => setNewAuction({ ...newAuction, plateNumber: e.target.value })} 
+                      />
+                      <Input 
+                        placeholder="No Rangka" 
+                        value={newAuction.chassisNumber} 
+                        onChange={(e) => setNewAuction({ ...newAuction, chassisNumber: e.target.value })} 
+                      />
+                      <Input 
+                        placeholder="No Mesin" 
+                        value={newAuction.engineNumber} 
+                        onChange={(e) => setNewAuction({ ...newAuction, engineNumber: e.target.value })} 
+                      />
+                      <textarea
+                        placeholder="Keterangan Surat (STNK/BPKB/Kelengkapan dokumen)"
+                        value={newAuction.documentInfo}
+                        onChange={(e) => setNewAuction({ ...newAuction, documentInfo: e.target.value })}
+                        className="w-full border rounded p-2 min-h-[100px]"
+                      />
+                    </>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>Pilih kategori Motor atau Mobil untuk menampilkan field khusus kendaraan</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Form Actions - Full Width */}
+                <div className="lg:col-span-2 flex justify-end space-x-2 pt-4 border-t">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => {
+                      setShowAddModal(false);
+                      setNewAuction({
+                        title: "",
+                        description: "",
+                        condition: "",
+                        location: "",
+                        categoryId: "",
+                        imageUrl: "",
+                        startingPrice: "",
+                        endTime: "",
+                        productionYear: "",
+                        plateNumber: "",
+                        chassisNumber: "",
+                        engineNumber: "",
+                        documentInfo: "",
+                      });
+                    }}
+                  >
+                    Batal
+                  </Button>
+                  <Button type="submit" disabled={createAuctionMutation.isPending}>
+                    {createAuctionMutation.isPending ? "Menyimpan..." : "Simpan"}
+                  </Button>
                 </div>
               </form>
             </div>
