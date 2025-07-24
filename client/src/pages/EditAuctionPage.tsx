@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -6,6 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import Navbar from "@/components/navbar";
+import VehicleInfoModal from "@/components/vehicle-info-modal";
+import { FileText } from "lucide-react";
 
 export default function EditAuctionPage() {
     const { id } = useParams<{ id: string }>();
@@ -22,6 +26,22 @@ export default function EditAuctionPage() {
         }
     });
 
+    // Fetch categories
+    const { data: categories = [] } = useQuery({
+        queryKey: ["/api/categories"],
+        queryFn: async () => {
+            const res = await fetch("/api/categories");
+            if (!res.ok) throw new Error("Failed to fetch categories");
+            return res.json();
+        },
+    });
+
+    // Find Motor and Mobil categories
+    const motorCategory = categories.find((cat: any) => cat.name.toLowerCase() === "motor");
+    const mobilCategory = categories.find((cat: any) => cat.name.toLowerCase() === "mobil");
+    const motorCategoryId = motorCategory?.id?.toString();
+    const mobilCategoryId = mobilCategory?.id?.toString();
+
     // State untuk form edit
     const [form, setForm] = useState({
         title: "",
@@ -32,6 +52,12 @@ export default function EditAuctionPage() {
         location: "",
         categoryId: "",
         imageUrl: "",
+        // Vehicle-specific fields
+        productionYear: "",
+        plateNumber: "",
+        chassisNumber: "",
+        engineNumber: "",
+        documentInfo: "",
     });
 
     // Isi form otomatis dari data yang didapat
@@ -63,10 +89,15 @@ export default function EditAuctionPage() {
                 location: auction.location ?? "",
                 categoryId: auction.categoryId?.toString() ?? "",
                 imageUrl: auction.imageUrl ?? "",
+                // Vehicle-specific fields
+                productionYear: auction.productionYear?.toString() ?? "",
+                plateNumber: auction.plateNumber ?? "",
+                chassisNumber: auction.chassisNumber ?? "",
+                engineNumber: auction.engineNumber ?? "",
+                documentInfo: auction.documentInfo ?? "",
             });
         }
     }, [auction]);
-
 
     // Mutasi update lelang
     const updateAuctionMutation = useMutation({
@@ -85,63 +116,220 @@ export default function EditAuctionPage() {
         },
     });
 
-    if (isLoading) return <div className="p-8 text-center">Loading...</div>;
-    if (!auction) return <div className="p-8 text-center text-red-600">Lelang tidak ditemukan.</div>;
+    if (isLoading) return (
+        <div className="min-h-screen bg-gray-50">
+            <Navbar />
+            <div className="p-8 text-center">Loading...</div>
+        </div>
+    );
+
+    if (!auction) return (
+        <div className="min-h-screen bg-gray-50">
+            <Navbar />
+            <div className="p-8 text-center text-red-600">Lelang tidak ditemukan.</div>
+        </div>
+    );
+
+    const isVehicleCategory = form.categoryId === motorCategoryId || form.categoryId === mobilCategoryId;
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12">
-            <Card className="w-full max-w-xl">
-                <CardHeader>
-                    <CardTitle>Edit Lelang</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <form
-                        className="space-y-4"
-                        onSubmit={e => {
-                            e.preventDefault();
-                            updateAuctionMutation.mutate({
-                                title: form.title,
-                                description: form.description,
-                                condition: form.condition,
-                                location: form.location,
-                                categoryId: parseInt(form.categoryId),
-                                imageUrl: form.imageUrl,
-                                startingPrice: parseFloat(form.startingPrice),
-                                // currentPrice boleh diabaikan, biasanya dihandle by bid
-                                endTime: auction.endTime
-                                    ? (typeof auction.endTime === "number"
-                                        ? new Date(auction.endTime * 1000).toISOString().slice(0, 16)
-                                        : new Date(auction.endTime).toISOString().slice(0, 16))
-                                    : "",
-                                status: auction.status,
-                                createdAt: auction.createdAt,
-                            });
-                        }}
-                    >
-                        <Input placeholder="Judul Lelang" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
-                        <Input placeholder="Deskripsi" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
-                        <Input placeholder="Kondisi" value={form.condition} onChange={e => setForm(f => ({ ...f, condition: e.target.value }))} />
-                        <Input placeholder="Lokasi" value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
-                        <select
-                            value={form.categoryId}
-                            onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
-                            className="w-full border rounded p-2"
+        <div className="min-h-screen bg-gray-50">
+            <Navbar />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">Edit Lelang</h1>
+                        <p className="text-gray-600 mt-2">Update informasi lelang {auction.title}</p>
+                    </div>
+                    {/* Vehicle Info Modal Button */}
+                    {isVehicleCategory && (
+                        <VehicleInfoModal auction={auction}>
+                            <Button variant="outline">
+                                <FileText className="h-4 w-4 mr-2" />
+                                View Document/Info
+                            </Button>
+                        </VehicleInfoModal>
+                    )}
+                </div>
+
+                <Card className="w-full max-w-6xl mx-auto">
+                    <CardHeader>
+                        <CardTitle>Informasi Lelang</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <form
+                            className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+                            onSubmit={e => {
+                                e.preventDefault();
+                                
+                                const updateData = {
+                                    title: form.title,
+                                    description: form.description,
+                                    condition: form.condition,
+                                    location: form.location,
+                                    categoryId: parseInt(form.categoryId),
+                                    imageUrl: form.imageUrl,
+                                    startingPrice: parseFloat(form.startingPrice),
+                                    endTime: new Date(form.endTime),
+                                };
+
+                                // Add vehicle-specific fields if it's Motor or Mobil category
+                                if (isVehicleCategory) {
+                                    Object.assign(updateData, {
+                                        productionYear: form.productionYear ? parseInt(form.productionYear) : undefined,
+                                        plateNumber: form.plateNumber || undefined,
+                                        chassisNumber: form.chassisNumber || undefined,
+                                        engineNumber: form.engineNumber || undefined,
+                                        documentInfo: form.documentInfo || undefined,
+                                    });
+                                }
+
+                                updateAuctionMutation.mutate(updateData);
+                            }}
                         >
-                            <option value="">-- Pilih Kategori --</option>
-                            <option value="1">Elektronik</option>
-                            <option value="2">Fashion</option>
-                            <option value="3">Kendaraan</option>
-                        </select>
-                        <Input placeholder="URL Gambar (opsional)" value={form.imageUrl} onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} />
-                        <Input placeholder="Harga Awal" type="number" value={form.startingPrice} onChange={e => setForm(f => ({ ...f, startingPrice: e.target.value }))} />
-                        <Input placeholder="Waktu Berakhir" type="datetime-local" value={form.endTime} onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} />
-                        <div className="flex justify-end space-x-2">
-                            <Button type="button" variant="outline" onClick={() => navigate("/admin")}>Batal</Button>
-                            <Button type="submit" disabled={updateAuctionMutation.isPending}>Simpan</Button>
-                        </div>
-                    </form>
-                </CardContent>
-            </Card>
+                            {/* Left Column - Basic Info */}
+                            <div className="space-y-4">
+                                <h3 className="font-semibold text-gray-900 border-b pb-2">Informasi Dasar</h3>
+                                
+                                <Input 
+                                    placeholder="Judul Lelang" 
+                                    value={form.title} 
+                                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))} 
+                                    required
+                                />
+                                
+                                <textarea
+                                    placeholder="Deskripsi"
+                                    value={form.description}
+                                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                                    className="w-full border rounded p-2 min-h-[80px]"
+                                    required
+                                />
+                                
+                                <select
+                                    value={form.condition}
+                                    onChange={e => setForm(f => ({ ...f, condition: e.target.value }))}
+                                    className="w-full border rounded p-2"
+                                    required
+                                >
+                                    <option value="">-- Pilih Kondisi --</option>
+                                    <option value="new">Baru</option>
+                                    <option value="like_new">Seperti Baru</option>
+                                    <option value="good">Baik</option>
+                                    <option value="fair">Cukup</option>
+                                </select>
+                                
+                                <Input 
+                                    placeholder="Lokasi" 
+                                    value={form.location} 
+                                    onChange={e => setForm(f => ({ ...f, location: e.target.value }))} 
+                                    required
+                                />
+                                
+                                <select
+                                    value={form.categoryId}
+                                    onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
+                                    className="w-full border rounded p-2"
+                                    required
+                                >
+                                    <option value="">-- Pilih Kategori --</option>
+                                    {categories.map((category: any) => (
+                                        <option key={category.id} value={category.id}>
+                                            {category.name}
+                                        </option>
+                                    ))}
+                                </select>
+
+                                <Input 
+                                    placeholder="URL Gambar (opsional)" 
+                                    value={form.imageUrl} 
+                                    onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} 
+                                />
+                                
+                                <Input 
+                                    placeholder="Harga Awal" 
+                                    type="number" 
+                                    value={form.startingPrice} 
+                                    onChange={e => setForm(f => ({ ...f, startingPrice: e.target.value }))} 
+                                    required
+                                />
+                                
+                                <Input 
+                                    placeholder="Waktu Berakhir" 
+                                    type="datetime-local" 
+                                    value={form.endTime} 
+                                    onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} 
+                                    required
+                                />
+                            </div>
+
+                            {/* Right Column - Vehicle Specific Info */}
+                            <div className="space-y-4">
+                                {isVehicleCategory ? (
+                                    <>
+                                        <h3 className="font-semibold text-gray-900 border-b pb-2">
+                                            Informasi {form.categoryId === motorCategoryId ? "Motor" : "Mobil"}
+                                        </h3>
+                                        
+                                        <Input
+                                            placeholder="Tahun Produksi"
+                                            type="number"
+                                            value={form.productionYear}
+                                            onChange={e => setForm(f => ({ ...f, productionYear: e.target.value }))}
+                                        />
+                                        
+                                        <Input
+                                            placeholder="No Polisi"
+                                            value={form.plateNumber}
+                                            onChange={e => setForm(f => ({ ...f, plateNumber: e.target.value }))}
+                                        />
+                                        
+                                        <Input
+                                            placeholder="No Rangka"
+                                            value={form.chassisNumber}
+                                            onChange={e => setForm(f => ({ ...f, chassisNumber: e.target.value }))}
+                                        />
+                                        
+                                        <Input
+                                            placeholder="No Mesin"
+                                            value={form.engineNumber}
+                                            onChange={e => setForm(f => ({ ...f, engineNumber: e.target.value }))}
+                                        />
+                                        
+                                        <textarea
+                                            placeholder="Keterangan Surat (STNK/BPKB/Kelengkapan dokumen)"
+                                            value={form.documentInfo}
+                                            onChange={e => setForm(f => ({ ...f, documentInfo: e.target.value }))}
+                                            className="w-full border rounded p-2 min-h-[100px]"
+                                        />
+                                    </>
+                                ) : (
+                                    <div className="text-center py-8 text-gray-500">
+                                        <p>Pilih kategori Motor atau Mobil untuk menampilkan field khusus kendaraan</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Form Actions - Full Width */}
+                            <div className="lg:col-span-2 flex justify-end space-x-2 pt-4 border-t">
+                                <Button 
+                                    type="button" 
+                                    variant="outline" 
+                                    onClick={() => navigate("/admin")}
+                                >
+                                    Batal
+                                </Button>
+                                <Button 
+                                    type="submit" 
+                                    disabled={updateAuctionMutation.isPending}
+                                >
+                                    {updateAuctionMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}
+                                </Button>
+                            </div>
+                        </form>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }
