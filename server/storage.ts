@@ -652,16 +652,28 @@ export class DatabaseStorage implements IStorage {
       const expiredAuctions = await db
         .select()
         .from(auctions)
-        .where(and(
-          eq(auctions.status, "active"),
-          sql`${auctions.endTime} <= ${now.toISOString()}`
-        ));
+        .where(eq(auctions.status, "active"));
 
-      console.log(`[checkAndEndExpiredAuctions] Found ${expiredAuctions.length} expired auctions`);
+      console.log(`[checkAndEndExpiredAuctions] Checking ${expiredAuctions.length} active auctions against current time: ${now.toISOString()}`);
 
       let endedCount = 0;
+      const actuallyExpired = [];
 
       for (const auction of expiredAuctions) {
+        // Properly compare dates - endTime should be a Date object
+        const endTime = new Date(auction.endTime);
+        const isExpired = now >= endTime;
+        
+        console.log(`[checkAndEndExpiredAuctions] Auction ${auction.id} (${auction.title}): endTime=${endTime.toISOString()}, now=${now.toISOString()}, expired=${isExpired}`);
+        
+        if (isExpired) {
+          actuallyExpired.push(auction);
+        }
+      }
+
+      console.log(`[checkAndEndExpiredAuctions] Found ${actuallyExpired.length} actually expired auctions`);
+
+      for (const auction of actuallyExpired) {
         try {
           // Get highest bid for this auction
           const highestBid = await this.getHighestBid(auction.id);
@@ -676,7 +688,7 @@ export class DatabaseStorage implements IStorage {
             })
             .where(eq(auctions.id, auction.id));
 
-          console.log(`[checkAndEndExpiredAuctions] Ended auction ${auction.id}, winner: ${winnerId || 'none'}`);
+          console.log(`[checkAndEndExpiredAuctions] Ended auction ${auction.id} (${auction.title}), winner: ${winnerId || 'none'}`);
           endedCount++;
         } catch (error) {
           console.error(`[checkAndEndExpiredAuctions] Error ending auction ${auction.id}:`, error);

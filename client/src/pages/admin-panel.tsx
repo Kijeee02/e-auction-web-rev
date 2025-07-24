@@ -303,11 +303,12 @@ export default function AdminPanel() {
     },
   });
 
-  // Auto-check expired auctions every 2 minutes
+  // Auto-check expired auctions every 5 minutes
   useEffect(() => {
     const interval = setInterval(() => {
+      console.log("[AdminPanel] Running automatic expired auction check...");
       checkExpiredMutation.mutate();
-    }, 120000); // 2 minutes
+    }, 300000); // 5 minutes
 
     return () => clearInterval(interval);
   }, [checkExpiredMutation]);

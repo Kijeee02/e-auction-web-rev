@@ -50,9 +50,12 @@ app.use((req, res, next) => {
   const startBackgroundTasks = () => {
     const checkExpiredAuctions = async () => {
       try {
+        console.log("[Background] Starting automatic expired auction check...");
         const endedCount = await storage.checkAndEndExpiredAuctions();
         if (endedCount > 0) {
           log(`[Background] Automatically ended ${endedCount} expired auctions`);
+        } else {
+          console.log("[Background] No expired auctions found");
         }
       } catch (error) {
         console.error("[Background] Error checking expired auctions:", error);
@@ -61,9 +64,9 @@ app.use((req, res, next) => {
 
     // Run immediately on startup
     checkExpiredAuctions();
-    
+
     // Then run every 60 seconds
-    setInterval(checkExpiredAuctions, 60000);
+    setInterval(checkExpiredAuctions, 300000);
     log("[Background] Started automatic auction expiry checker (every 60 seconds)");
   };
 
