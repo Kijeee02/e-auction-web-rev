@@ -83,11 +83,21 @@ export default function PaymentStatus({ auctionId }: PaymentStatusProps) {
           </Badge>
         </div>
 
-        {payment.status === "rejected" && payment.notes && (
+        {payment.status === "rejected" && (
           <div className="mt-3 p-3 bg-red-50 rounded-lg">
             <p className="text-sm text-red-700">
-              <strong>Alasan Penolakan:</strong> {payment.notes}
+              ❌ Pembayaran ditolak oleh admin.
             </p>
+            {payment.notes && (
+              <p className="text-sm text-red-700 mt-1">
+                <strong>Alasan Penolakan:</strong> {payment.notes}
+              </p>
+            )}
+            {payment.verifiedAt && (
+              <p className="text-sm text-red-600 mt-1">
+                Ditolak pada: {new Date(typeof payment.verifiedAt === 'number' ? payment.verifiedAt * 1000 : payment.verifiedAt).toLocaleDateString('id-ID')}
+              </p>
+            )}
           </div>
         )}
 
@@ -98,7 +108,12 @@ export default function PaymentStatus({ auctionId }: PaymentStatusProps) {
             </p>
             {payment.verifiedAt && (
               <p className="text-sm text-green-600 mt-1">
-                Divalidasi pada: {new Date(payment.verifiedAt).toLocaleDateString('id-ID')}
+                Divalidasi pada: {new Date(typeof payment.verifiedAt === 'number' ? payment.verifiedAt * 1000 : payment.verifiedAt).toLocaleDateString('id-ID')}
+              </p>
+            )}
+            {payment.notes && (
+              <p className="text-sm text-green-600 mt-1">
+                <strong>Catatan Admin:</strong> {payment.notes}
               </p>
             )}
           </div>

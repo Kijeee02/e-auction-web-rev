@@ -617,13 +617,14 @@ export class DatabaseStorage implements IStorage {
     }
 
     async verifyPayment(paymentId: number, adminId: number, status: string, notes?: string): Promise<Payment> {
+      const now = new Date();
       const [payment] = await db
         .update(payments)
         .set({ 
           status: status, 
           verifiedBy: adminId, 
           notes: notes,
-          verifiedAt: new Date()
+          verifiedAt: Math.floor(now.getTime() / 1000) // Store as Unix timestamp
         })
         .where(eq(payments.id, paymentId))
         .returning();

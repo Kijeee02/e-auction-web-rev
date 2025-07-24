@@ -61,6 +61,11 @@ export default function AdminPanel() {
     name: "",
     description: "",
   });
+  const [verifyPaymentModal, setVerifyPaymentModal] = useState<{
+    payment: any;
+    action: 'verify' | 'reject';
+  } | null>(null);
+  const [verificationNotes, setVerificationNotes] = useState("");
 
   const {
     data: auctions,
@@ -221,6 +226,11 @@ export default function AdminPanel() {
 
   const { data: pendingPayments = [], isLoading: loadingPayments } = useQuery<(Payment & { auction: any; winner: any })[]>({
     queryKey: ["/api/admin/payments/pending"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/payments/pending");
+      if (!res.ok) throw new Error("Failed to fetch pending payments");
+      return res.json();
+    },
   });
 
   const deleteAuctionMutation = useMutation({
@@ -737,18 +747,25 @@ export default function AdminPanel() {
                             <div className="flex space-x-2">
                               <Button
                                 size="sm"
-                                onClick={() => verifyPaymentMutation.mutate({ paymentId: payment.id, status: "verified" })}
+                                onClick={() => {
+                                  setVerifyPaymentModal({ payment, action: 'verify' });
+                                  setVerificationNotes("");
+                                }}
                                 disabled={verifyPaymentMutation.isPending}
+                                className="bg-green-600 hover:bg-green-700"
                               >
-                                Verify
+                                ✓ Approve
                               </Button>
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={() => verifyPaymentMutation.mutate({ paymentId: payment.id, status: "rejected", notes: "Payment rejected by admin" })}
+                                onClick={() => {
+                                  setVerifyPaymentModal({ payment, action: 'reject' });
+                                  setVerificationNotes("");
+                                }}
                                 disabled={verifyPaymentMutation.isPending}
                               >
-                                Reject
+                                ✗ Reject
                               </Button>
                             </div>
                           </TableCell>
@@ -1258,6 +1275,97 @@ This code adds a button to manually check expired auctions and integrates automa
                   </Button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Payment Verification Modal */}
+        {verifyPaymentModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+              <h2 className="text-lg font-bold mb-4">
+                {verifyPaymentModal.action === 'verify' ? 'Approve Payment' : 'Reject Payment'}
+              </h2>
+              
+              <div className="mb-4 p-3 bg-gray-50 rounded">
+                <p className="text-sm text-gray-600">Auction</p>
+                <p className="font-medium">{verifyPaymentModal.payment.auction?.title}</p>
+                <p className="text-sm text-gray-600 mt-1">Amount</p>
+                <p className="font-bold text-primary">
+                  Rp {Number(verifyPaymentModal.payment.amount).toLocaleString('id-ID')}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">Winner</p>
+                <p className="font-medium">
+                  {verifyPaymentModal.payment.winner?.firstName} {verifyPaymentModal.payment.winner?.lastName}
+                </p>
+                {verifyPaymentModal.payment.paymentProof && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-600">Payment Proof</p>
+                    <a 
+                      href={verifyPaymentModal.payment.paymentProof} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline text-sm"
+                    >
+                      View Proof →
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {verifyPaymentModal.action === 'verify' ? 'Approval Notes (Optional)' : 'Rejection Reason'}
+                </label>
+                <textarea
+                  value={verificationNotes}
+                  onChange={(e) => setVerificationNotes(e.target.value)}
+                  placeholder={
+                    verifyPaymentModal.action === 'verify' 
+                      ? "Add any notes about the approval..."
+                      : "Please provide reason for rejection..."
+                  }
+                  className="w-full p-2 border border-gray-300 rounded-md min-h-[80px] resize-vertical"
+                  required={verifyPaymentModal.action === 'reject'}
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setVerifyPaymentModal(null);
+                    setVerificationNotes("");
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (verifyPaymentModal.action === 'reject' && !verificationNotes.trim()) {
+                      toast({ 
+                        title: "Error", 
+                        description: "Please provide a reason for rejection", 
+                        variant: "destructive" 
+                      });
+                      return;
+                    }
+                    
+                    verifyPaymentMutation.mutate({ 
+                      paymentId: verifyPaymentModal.payment.id, 
+                      status: verifyPaymentModal.action === 'verify' ? 'verified' : 'rejected',
+                      notes: verificationNotes.trim() || undefined
+                    });
+                    setVerifyPaymentModal(null);
+                    setVerificationNotes("");
+                  }}
+                  disabled={verifyPaymentMutation.isPending}
+                  variant={verifyPaymentModal.action === 'verify' ? 'default' : 'destructive'}
+                >
+                  {verifyPaymentMutation.isPending ? "Processing..." : 
+                   verifyPaymentModal.action === 'verify' ? 'Approve Payment' : 'Reject Payment'}
+                </Button>
+              </div>
             </div>
           </div>
         )}
