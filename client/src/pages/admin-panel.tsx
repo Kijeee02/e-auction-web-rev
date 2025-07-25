@@ -1170,8 +1170,7 @@ This code adds a button to manually check expired auctions and integrates automa
                       onChange={(e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          // For now, we'll create a temporary URL for preview
-                          // In production, you'd upload to a file storage service
+                          // Create a temporary URL for preview
                           const reader = new FileReader();
                           reader.onload = (event) => {
                             setNewAuction({ ...newAuction, imageUrl: event.target?.result as string });

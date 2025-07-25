@@ -240,11 +240,35 @@ export default function EditAuctionPage() {
                                     ))}
                                 </select>
 
-                                <Input 
-                                    placeholder="URL Gambar (opsional)" 
-                                    value={form.imageUrl} 
-                                    onChange={e => setForm(f => ({ ...f, imageUrl: e.target.value }))} 
-                                />
+                                {/* File Upload for Image */}
+                                <div className="space-y-2">
+                                    <label className="block text-sm font-medium text-gray-700">Upload Gambar</label>
+                                    <Input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                // Create a temporary URL for preview
+                                                const reader = new FileReader();
+                                                reader.onload = (event) => {
+                                                    setForm(f => ({ ...f, imageUrl: event.target?.result as string }));
+                                                };
+                                                reader.readAsDataURL(file);
+                                            }
+                                        }}
+                                        className="w-full border rounded p-2"
+                                    />
+                                    {form.imageUrl && (
+                                        <div className="mt-2">
+                                            <img
+                                                src={form.imageUrl}
+                                                alt="Preview"
+                                                className="w-32 h-32 object-cover rounded border"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
                                 
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium text-gray-700">Harga Awal</label>
