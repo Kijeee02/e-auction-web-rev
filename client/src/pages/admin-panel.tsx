@@ -66,6 +66,7 @@ export default function AdminPanel() {
     action: 'verify' | 'reject';
   } | null>(null);
   const [verificationNotes, setVerificationNotes] = useState("");
+  const [archivedSearchQuery, setArchivedSearchQuery] = useState("");
 
   const {
     data: auctions,
@@ -366,6 +367,10 @@ export default function AdminPanel() {
     const matchesSearch = !searchQuery ||
       auction.title.toLowerCase().includes(searchQuery.toLowerCase());
     return notArchived && matchesStatus && matchesSearch;
+  });
+
+    const filteredArchivedAuctions = (archivedAuctions ?? []).filter(auction => {
+    return !archivedSearchQuery || auction.title.toLowerCase().includes(archivedSearchQuery.toLowerCase());
   });
 
   const handleView = (id: number) => {
@@ -783,6 +788,12 @@ export default function AdminPanel() {
                     <h3 className="text-lg font-medium text-gray-900">Lelang yang Diarsipkan</h3>
                     <p className="text-sm text-gray-600">Kelola barang lelang yang sudah diarsipkan</p>
                   </div>
+                  <Input
+                      placeholder="Cari lelang..."
+                      value={archivedSearchQuery}
+                      onChange={(e) => setArchivedSearchQuery(e.target.value)}
+                      className="w-64"
+                    />
                 </div>
 
                 {loadingArchived ? (
@@ -818,7 +829,7 @@ export default function AdminPanel() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {archivedAuctions.map((auction) => (
+                        {filteredArchivedAuctions.map((auction) => (
                           <TableRow key={auction.id}>
                             <TableCell>
                               <div className="flex items-center">
@@ -1291,7 +1302,7 @@ This code adds a button to manually check expired auctions and integrates automa
               <h2 className="text-lg font-bold mb-4">
                 {verifyPaymentModal.action === 'verify' ? 'Approve Payment' : 'Reject Payment'}
               </h2>
-              
+
               <div className="mb-4 p-3 bg-gray-50 rounded">
                 <p className="text-sm text-gray-600">Auction</p>
                 <p className="font-medium">{verifyPaymentModal.payment.auction?.title}</p>
@@ -1355,7 +1366,7 @@ This code adds a button to manually check expired auctions and integrates automa
                       });
                       return;
                     }
-                    
+
                     verifyPaymentMutation.mutate({ 
                       paymentId: verifyPaymentModal.payment.id, 
                       status: verifyPaymentModal.action === 'verify' ? 'verified' : 'rejected',
