@@ -89,7 +89,10 @@ export function initializeDatabase() {
         notes TEXT,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         verified_at INTEGER,
-        verified_by INTEGER REFERENCES users(id)
+        verified_by INTEGER REFERENCES users(id),
+        invoice_document TEXT,
+        release_letter_document TEXT,
+        handover_document TEXT
       );
     `);
 
