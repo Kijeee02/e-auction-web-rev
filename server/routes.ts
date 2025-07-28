@@ -649,23 +649,17 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Admin routes
-  app.get("/api/admin/stats", async (req, res) => {
+  // Admin routes - Real Statistics
+  app.get("/api/admin/real-stats", async (req, res) => {
     try {
       if (!req.isAuthenticated() || req.user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      // Mock admin stats - in real implementation, you'd query the database
-      const stats = {
-        totalUsers: 1247,
-        activeAuctions: 245,
-        completedTransactions: 1892,
-        monthlyRevenue: "850000000"
-      };
-
+      const stats = await storage.getRealAdminStats();
       res.json(stats);
     } catch (error) {
+      console.error("Error fetching real admin stats:", error);
       res.status(500).json({ message: "Failed to fetch admin stats" });
     }
   });

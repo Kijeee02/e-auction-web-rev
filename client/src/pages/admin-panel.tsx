@@ -1,6 +1,6 @@
+
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-// import { AuctionWithDetails } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/navbar";
@@ -37,13 +37,14 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  CreditCard,
+  Clock,
+  Activity,
+  TrendingUp,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Auction, Payment } from "@shared/schema";
 import { useLocation, useParams } from "wouter";
 import VehicleInfoModal from "@/components/vehicle-info-modal";
-import { Clock } from "lucide-react";
 
 export default function AdminPanel() {
   const { user } = useAuth();
@@ -86,6 +87,16 @@ export default function AdminPanel() {
   });
   const [paymentHistorySearch, setPaymentHistorySearch] = useState("");
   const [paymentHistoryStatus, setPaymentHistoryStatus] = useState("all");
+
+  // Real Admin Statistics
+  const { data: realStats, isLoading: statsLoading } = useQuery({
+    queryKey: ["/api/admin/real-stats"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/real-stats");
+      if (!res.ok) throw new Error("Failed to fetch real stats");
+      return res.json();
+    },
+  });
 
   const { data: paymentHistory = [], isLoading: loadingPaymentHistory } = useQuery<
     (Payment & { auction: any; winner: any })[]
@@ -163,6 +174,7 @@ export default function AdminPanel() {
         documentInfo: "",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/real-stats"] });
       toast({
         title: "Sukses",
         description: "Lelang berhasil ditambahkan",
@@ -259,20 +271,6 @@ export default function AdminPanel() {
     );
   }
 
-  type AdminStats = {
-    totalUsers: number;
-    completedTransactions: number;
-  };
-
-  const { data: adminStats } = useQuery<AdminStats>({
-    queryKey: ["/api/admin/stats"],
-    queryFn: async () => {
-      const res = await fetch("/api/admin/stats");
-      if (!res.ok) throw new Error("Gagal mengambil statistik admin");
-      return res.json();
-    },
-  });
-
   const { data: archivedAuctions = [], isLoading: loadingArchived } = useQuery<
     Auction[]
   >({
@@ -294,15 +292,14 @@ export default function AdminPanel() {
   const deleteAuctionMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await apiRequest("DELETE", `/api/auctions/${id}`);
-      // Tidak usah cek res.ok, apapun hasilnya, lanjut saja.
       try {
         await res.json();
-      } catch {} // biar tidak error kalau respons kosong
+      } catch {} 
       return true;
     },
     onSettled: () => {
-      // SELALU refresh data lelang
       queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/real-stats"] });
       toast({
         title: "Sukses",
         description: "Lelang berhasil dihapus",
@@ -328,6 +325,7 @@ export default function AdminPanel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/real-stats"] });
       toast({
         title: "Success",
         description: "Auction ended successfully",
@@ -350,6 +348,7 @@ export default function AdminPanel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/real-stats"] });
       toast({
         title: "Success",
         description: "Expired auctions checked successfully",
@@ -383,6 +382,7 @@ export default function AdminPanel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auctions/archived"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/real-stats"] });
       toast({
         title: "Success",
         description: "Auction archived successfully",
@@ -406,6 +406,7 @@ export default function AdminPanel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/auctions/archived"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/real-stats"] });
       toast({
         title: "Success",
         description: "Auction unarchived successfully",
@@ -482,6 +483,7 @@ export default function AdminPanel() {
       queryClient.invalidateQueries({
         queryKey: ["/api/user/payments"],
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/real-stats"] });
       toast({ title: "Success", description: "Payment verified successfully" });
     },
     onError: () => {
@@ -499,26 +501,26 @@ export default function AdminPanel() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Admin Control Panel</h1>
           <p className="text-gray-600 mt-2">
             Kelola sistem lelang e-auction Jabodetabek
           </p>
         </div>
 
-        {/* Admin Stats */}
+        {/* Real-time System Statistics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Users className="h-8 w-8 text-primary" />
+                  <Users className="h-8 w-8 text-blue-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
                     Total Pengguna
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {adminStats?.totalUsers || "1,247"}
+                    {statsLoading ? "..." : realStats?.totalUsers || 0}
                   </p>
                 </div>
               </div>
@@ -529,17 +531,14 @@ export default function AdminPanel() {
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Gavel className="h-8 w-8 text-accent" />
+                  <Gavel className="h-8 w-8 text-green-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
                     Lelang Aktif
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {
-                      (auctions ?? []).filter((a) => a.status === "active")
-                        .length
-                    }
+                    {statsLoading ? "..." : realStats?.activeAuctions || 0}
                   </p>
                 </div>
               </div>
@@ -554,10 +553,10 @@ export default function AdminPanel() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
-                    Transaksi Selesai
+                    Lelang Selesai
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {adminStats?.completedTransactions || "1,892"}
+                    {statsLoading ? "..." : realStats?.completedAuctions || 0}
                   </p>
                 </div>
               </div>
@@ -568,31 +567,30 @@ export default function AdminPanel() {
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <DollarSign className="h-8 w-8 text-green-600" />
+                  <Activity className="h-8 w-8 text-orange-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
-                    Revenue Bulan Ini
+                    Pembayaran Pending
                   </p>
-                  <p className="text-2xl font-bold text-gray-900">Rp 850jt</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {loadingPayments ? "..." : pendingPayments.length}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Admin Tabs */}
+        {/* Management Tabs */}
         <Tabs defaultValue="auctions" className="w-full">
           <Card>
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-7">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="auctions">Kelola Lelang</TabsTrigger>
                 <TabsTrigger value="categories">Kategori</TabsTrigger>
                 <TabsTrigger value="payments">Pembayaran</TabsTrigger>
-                <TabsTrigger value="archived">Arsip</TabsTrigger>
-                <TabsTrigger value="users">Pengguna</TabsTrigger>
-                <TabsTrigger value="reports">Laporan</TabsTrigger>
-                <TabsTrigger value="settings">Pengaturan</TabsTrigger>
+                <TabsTrigger value="archived">Arsip Lelang</TabsTrigger>
               </TabsList>
             </CardHeader>
 
@@ -605,9 +603,13 @@ export default function AdminPanel() {
                       <Plus className="h-4 w-4 mr-2" />
                       Tambah Lelang
                     </Button>
-                    <Button variant="outline">
-                      <FileText className="h-4 w-4 mr-2" />
-                      Export Data
+                    <Button 
+                      variant="outline"
+                      onClick={() => checkExpiredMutation.mutate()}
+                      disabled={checkExpiredMutation.isPending}
+                    >
+                      <Clock className="h-4 w-4 mr-2" />
+                      Cek Expired
                     </Button>
                   </div>
 
@@ -698,7 +700,7 @@ export default function AdminPanel() {
                             <TableCell>
                               <span className="font-bold text-primary">
                                 Rp{" "}
-                                {auction.startingPrice.toLocaleString("id-ID")}
+                                {auction.currentPrice.toLocaleString("id-ID")}
                               </span>
                             </TableCell>
                             <TableCell>
@@ -728,7 +730,6 @@ export default function AdminPanel() {
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                                {/* Vehicle Info Button - only show for Motor/Mobil */}
                                 {(auction.categoryId ===
                                   parseInt(motorCategoryId || "0") ||
                                   auction.categoryId ===
@@ -1021,7 +1022,7 @@ export default function AdminPanel() {
                     </div>
                   ) : paymentHistory.length === 0 ? (
                     <div className="text-center py-8">
-                      <CreditCard className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                      <DollarSign className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                       <h3 className="text-lg font-medium text-gray-900 mb-2">
                         Belum ada riwayat pembayaran
                       </h3>
@@ -1427,50 +1428,12 @@ export default function AdminPanel() {
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
-                              This code adds a button to manually check expired
-                              auctions and integrates automatic periodic
-                              checking.{" "}
                             </div>
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="users" className="space-y-4">
-                <div className="text-center py-8">
-                  <Users className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    User Management
-                  </h3>
-                  <p className="text-gray-600">
-                    User management features will be implemented here.
-                  </p>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="reports" className="space-y-4">
-                <div className="text-center py-8">
-                  <FileText className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Reports & Analytics
-                  </h3>
-                  <p className="text-gray-600">
-                    Reporting features will be implemented here.
-                  </p>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="settings" className="space-y-4">
-                <div className="text-center py-8">
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    System Settings
-                  </h3>
-                  <p className="text-gray-600">
-                    System configuration options will be implemented here.
-                  </p>
                 </div>
               </TabsContent>
             </CardContent>

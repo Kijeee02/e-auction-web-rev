@@ -91,6 +91,14 @@ export interface IStorage {
     email: string;
     phone?: string;
   }): Promise<User | null>;
+
+  // Real admin statistics
+  getRealAdminStats(): Promise<{
+    totalUsers: number;
+    activeAuctions: number;
+    completedAuctions: number;
+    totalRevenue: number;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -806,6 +814,57 @@ export class DatabaseStorage implements IStorage {
       return endedCount;
     } catch (error) {
       console.error("[checkAndEndExpiredAuctions] Error:", error);
+      throw error;
+    }
+  }
+
+  async getRealAdminStats(): Promise<{
+    totalUsers: number;
+    activeAuctions: number;
+    completedAuctions: number;
+    totalRevenue: number;
+  }> {
+    try {
+      // Count total users (excluding admins)
+      const totalUsersResult = await db
+        .select({ count: count() })
+        .from(users)
+        .where(eq(users.role, "user"));
+
+      // Count active auctions
+      const activeAuctionsResult = await db
+        .select({ count: count() })
+        .from(auctions)
+        .where(and(
+          eq(auctions.status, "active"),
+          eq(auctions.archived, false)
+        ));
+
+      // Count completed auctions (ended with winner)
+      const completedAuctionsResult = await db
+        .select({ count: count() })
+        .from(auctions)
+        .where(and(
+          eq(auctions.status, "ended"),
+          sql`winnerId IS NOT NULL`
+        ));
+
+      // Calculate total revenue from verified payments
+      const totalRevenueResult = await db
+        .select({ 
+          total: sql<number>`COALESCE(SUM(CAST(amount AS REAL)), 0)` 
+        })
+        .from(payments)
+        .where(eq(payments.status, "verified"));
+
+      return {
+        totalUsers: totalUsersResult[0]?.count || 0,
+        activeAuctions: activeAuctionsResult[0]?.count || 0,
+        completedAuctions: completedAuctionsResult[0]?.count || 0,
+        totalRevenue: totalRevenueResult[0]?.total || 0,
+      };
+    } catch (error) {
+      console.error("Error fetching real admin stats:", error);
       throw error;
     }
   }
