@@ -583,8 +583,21 @@ export class DatabaseStorage implements IStorage {
         return db.select().from(payments).where(eq(payments.winnerId, userId));
     }
 
-    async getUserPayments(userId: number): Promise<Payment[]> {
-      return db.select().from(payments).where(eq(payments.winnerId, userId));
+    async getUserPayments(userId: number): Promise<(Payment & { auction?: Auction })[]> {
+      const results = await db
+        .select({
+          payment: payments,
+          auction: auctions,
+        })
+        .from(payments)
+        .leftJoin(auctions, eq(payments.auctionId, auctions.id))
+        .where(eq(payments.winnerId, userId))
+        .orderBy(desc(payments.createdAt));
+
+      return results.map((result) => ({
+        ...result.payment,
+        auction: result.auction,
+      }));
     }
 
     async createPayment(payment: InsertPayment): Promise<Payment> {

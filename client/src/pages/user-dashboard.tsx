@@ -296,6 +296,142 @@ export default function UserDashboard() {
                 )}
               </TabsContent>
 
+              <TabsContent value="won" className="space-y-4">
+                {wonAuctions.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Trophy className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Belum ada lelang yang dimenangkan
+                    </h3>
+                    <p className="text-gray-600">
+                      Lelang yang Anda menangkan akan muncul di sini.
+                    </p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produk</TableHead>
+                        <TableHead>Harga Menang</TableHead>
+                        <TableHead>Status Bayar</TableHead>
+                        <TableHead>Tanggal Berakhir</TableHead>
+                        <TableHead>Dokumen</TableHead>
+                        <TableHead>Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {wonAuctions.map((auction) => {
+                        // Find payment for this auction
+                        const payment = userPayments.find(p => p.auctionId === auction.id);
+
+                        return (
+                          <TableRow key={auction.id}>
+                            <TableCell>
+                              <div className="flex items-center">
+                                <img
+                                  src={auction.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"}
+                                  alt={auction.title}
+                                  className="w-12 h-12 object-cover rounded-lg mr-3"
+                                />
+                                <div>
+                                  <p className="font-medium text-gray-900">{auction.title}</p>
+                                  <p className="text-sm text-gray-600">{auction.condition}</p>
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-bold text-primary">
+                                Rp {parseFloat(auction.currentPrice).toLocaleString('id-ID')}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {payment ? (
+                                <Badge variant={
+                                  payment.status === "verified" ? "default" :
+                                  payment.status === "rejected" ? "destructive" : "secondary"
+                                }>
+                                  {payment.status === "verified" ? "Lunas" :
+                                   payment.status === "rejected" ? "Ditolak" : "Pending"}
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive">Belum Bayar</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-sm text-gray-600">
+                                {new Date(auction.endTime).toLocaleDateString('id-ID')}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col gap-1">
+                                {payment && payment.status === "verified" && (
+                                  <>
+                                    {payment.invoiceDocument && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => window.open(payment.invoiceDocument, '_blank')}
+                                        className="text-xs h-6"
+                                      >
+                                        <FileText className="h-3 w-3 mr-1" />
+                                        Invoice
+                                      </Button>
+                                    )}
+                                    {payment.releaseLetterDocument && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => window.open(payment.releaseLetterDocument, '_blank')}
+                                        className="text-xs h-6"
+                                      >
+                                        <FileText className="h-3 w-3 mr-1" />
+                                        Surat Lepas
+                                      </Button>
+                                    )}
+                                    {payment.handoverDocument && (
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => window.open(payment.handoverDocument, '_blank')}
+                                        className="text-xs h-6"
+                                      >
+                                        <FileText className="h-3 w-3 mr-1" />
+                                        Serah Terima
+                                      </Button>
+                                    )}
+                                    {!payment.invoiceDocument && !payment.releaseLetterDocument && !payment.handoverDocument && (
+                                      <span className="text-xs text-gray-500">Dokumen belum tersedia</span>
+                                    )}
+                                  </>
+                                )}
+                                {payment && payment.status === "pending" && (
+                                  <span className="text-xs text-yellow-600">Menunggu verifikasi</span>
+                                )}
+                                {payment && payment.status === "rejected" && (
+                                  <span className="text-xs text-red-600">Pembayaran ditolak</span>
+                                )}
+                                {!payment && (
+                                  <span className="text-xs text-red-600">Belum upload bukti bayar</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => window.location.href = `/auctions/${auction.id}`}
+                              >
+                                <ArrowRight className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
+
               <TabsContent value="payments" className="space-y-4">
                 {userPayments.length === 0 ? (
                   <div className="text-center py-8">
@@ -522,7 +658,7 @@ export default function UserDashboard() {
                       </div>
                     )}
                   </div>
-                  
+
                   {!isEditingProfile ? (
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
