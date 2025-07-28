@@ -728,7 +728,7 @@ export class DatabaseStorage implements IStorage {
           whereClauses.push(
             or(
               sql`auctions.title LIKE '%' || ${search} || '%'`,
-              sql`users.firstName || ' ' || users.lastName LIKE '%' || ${search} || '%'`,
+              sql`users.username LIKE '%' || ${search} || '%'`,
               sql`users.email LIKE '%' || ${search} || '%'`
             )
           );
