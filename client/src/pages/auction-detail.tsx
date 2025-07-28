@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { AuctionWithDetails, Bid } from "@shared/schema";
@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, MapPin, Heart, Share2 } from "lucide-react";
+import { ArrowLeft, MapPin, Heart, Share2, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AuctionDetail() {
@@ -23,6 +23,7 @@ export default function AuctionDetail() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [paymentStatus, setPaymentStatus] = useState<"loading" | "not_submitted" | "submitted">("loading");
 
   // Load auction details
   const {
@@ -52,6 +53,32 @@ export default function AuctionDetail() {
     },
     enabled: !!id,
   });
+
+  useEffect(() => {
+    if (!auction) return;
+
+    if (auction.status === "ended" && auction.winnerId === user?.id) {
+      queryClient.fetchQuery({
+        queryKey: [`/api/payments/auction/${auction.id}`],
+        queryFn: async () => {
+          try {
+            const res = await fetch(`/api/payments/auction/${auction.id}`);
+            if (!res.ok) {
+              setPaymentStatus("not_submitted");
+              return null;
+            }
+            setPaymentStatus("submitted");
+            return res.json();
+          } catch (error) {
+            setPaymentStatus("not_submitted");
+            return null;
+          }
+        },
+      }).catch(() => setPaymentStatus("not_submitted"));
+    } else {
+      setPaymentStatus("not_submitted");
+    }
+  }, [auction, user, id, queryClient]);
 
   // Watchlist mutation
   const watchlistMutation = useMutation({
@@ -266,6 +293,35 @@ export default function AuctionDetail() {
                   <p className="text-gray-600 mt-2">Tidak ada pemenang (tidak ada penawaran)</p>
                 )}
               </div>
+            )}
+
+            {/* Payment Form or Status */}
+            {auction.status === "ended" && auction.winnerId === user?.id && (
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <CreditCard className="h-5 w-5 mr-2" />
+                    Pembayaran
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {paymentStatus === "loading" ? (
+                    <div>Loading payment status...</div>
+                  ) : paymentStatus === "not_submitted" ? (
+                    <PaymentForm
+                      auction={auction}
+                      onPaymentSubmitted={() => {
+                        setPaymentStatus("submitted");
+                        queryClient.invalidateQueries({
+                          queryKey: [`/api/payments/auction/${auction.id}`],
+                        });
+                      }}
+                    />
+                  ) : (
+                    <PaymentStatus auctionId={auction.id} />
+                  )}
+                </CardContent>
+              </Card>
             )}
 
             <Card>

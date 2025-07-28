@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Gavel, Trophy, Eye, Star, ArrowRight, CreditCard } from "lucide-react";
+import { FileText } from "lucide-react";
 
 export default function UserDashboard() {
   const { user } = useAuth();
