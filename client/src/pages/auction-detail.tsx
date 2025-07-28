@@ -23,7 +23,7 @@ export default function AuctionDetail() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [paymentStatus, setPaymentStatus] = useState<"loading" | "not_submitted" | "submitted">("loading");
+  const [paymentStatus, setPaymentStatus] = useState<"loading" | "not_submitted" | "submitted" | "rejected">("loading");
 
   // Load auction details
   const {
@@ -64,6 +64,10 @@ export default function AuctionDetail() {
           try {
             const res = await fetch(`/api/payments/auction/${auction.id}`);
             if (!res.ok) {
+              if (res.status === 400) {
+                setPaymentStatus("rejected");
+                return null;
+              }
               setPaymentStatus("not_submitted");
               return null;
             }
@@ -137,7 +141,12 @@ export default function AuctionDetail() {
   const highestBid = bids[0] ?? null;
   const isAuctionActive = auction.status === "active" && new Date() < new Date(auction.endTime);
   const isWinner = user && auction.winnerId === user.id;
-  const shouldShowPayment = isWinner && auction.status === "ended";
+
+  // Check if user should see payment form (winner and payment not submitted or rejected)
+  const shouldShowPayment = 
+    isWinner && 
+    auction.status === "ended" && 
+    (paymentStatus === "not_submitted" || paymentStatus === "rejected");
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -312,7 +321,7 @@ export default function AuctionDetail() {
               </div>
             )}
 
-            
+
 
             <Card>
               <CardHeader>
@@ -350,3 +359,4 @@ export default function AuctionDetail() {
     </div>
   );
 }
+```

@@ -209,6 +209,14 @@ export function registerRoutes(app: Express): Server {
         return res.status(403).json({ message: "Access denied" });
       }
 
+      // Prevent deletion if auction has a winner
+      if (auction.winnerId) {
+        return res.status(400).json({ 
+          message: "Cannot delete auction with winner",
+          error: "Lelang yang sudah ada pemenang tidak dapat dihapus"
+        });
+      }
+
       const deleted = await storage.deleteAuction(id);
       if (deleted) {
         res.status(200).json({ message: "Auction deleted" });
@@ -649,9 +657,9 @@ export function registerRoutes(app: Express): Server {
         return res.status(403).json({ message: "You are not the winner of this auction" });
       }
 
-      // Check if payment already exists
+      // Check if payment already exists and is not rejected
       const existingPayment = await storage.getPaymentByAuctionId(paymentData.auctionId);
-      if (existingPayment) {
+      if (existingPayment && existingPayment.status !== "rejected") {
         return res.status(400).json({ message: "Payment already submitted for this auction" });
       }
 

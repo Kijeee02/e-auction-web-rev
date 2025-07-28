@@ -98,6 +98,9 @@ export default function PaymentStatus({ auctionId }: PaymentStatusProps) {
                 Ditolak pada: {new Date(typeof payment.verifiedAt === 'number' ? payment.verifiedAt * 1000 : payment.verifiedAt).toLocaleDateString('id-ID')}
               </p>
             )}
+            <p className="text-sm text-blue-700 mt-2 font-medium">
+              💡 Anda dapat melakukan pembayaran ulang dengan bukti pembayaran yang baru.
+            </p>
           </div>
         )}
 

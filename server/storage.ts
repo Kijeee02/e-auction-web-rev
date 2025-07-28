@@ -706,6 +706,65 @@ export class DatabaseStorage implements IStorage {
 
     async createPayment(payment: InsertPayment): Promise<Payment> {
     try {
+      // Check if there's a rejected payment to update instead of creating new
+      const existingPayment = await this.getPaymentByAuctionId(payment.auctionId);
+      
+      if (existingPayment && existingPayment.status === "rejected") {
+        // Update the existing rejected payment
+        const [updatedPayment] = await db
+          .update(payments)
+          .set({
+            amount: payment.amount,
+            paymentMethod: payment.paymentMethod,
+            paymentProof: payment.paymentProof,
+            bankName: payment.bankName,
+            accountNumber: payment.accountNumber,
+            accountName: payment.accountName,
+            status: "pending",
+            notes: null,
+            createdAt: new Date(),
+            verifiedAt: null,
+            verifiedBy: null,
+          })
+          .where(eq(payments.id, existingPayment.id))
+          .returning();
+        
+        // Get auction details for notification
+        const auction = await this.getAuction(payment.auctionId);
+        if (auction) {
+          // Notify admins about new payment submission
+          await this.createAdminNotification(
+            "payment",
+            "Pembayaran Ulang Diterima",
+            `Pembayaran ulang untuk lelang "${auction.title}" telah diterima dan menunggu verifikasi.`,
+            {
+              auctionId: payment.auctionId,
+              auctionTitle: auction.title,
+              amount: payment.amount,
+              paymentId: updatedPayment.id,
+            }
+          );
+
+          // Notify user about payment resubmission
+          await this.createNotification({
+            userId: payment.winnerId,
+            type: "payment",
+            title: "Pembayaran Ulang Berhasil Dikirim",
+            message: `Pembayaran ulang Anda untuk lelang "${auction.title}" telah diterima dan sedang diverifikasi oleh admin.`,
+            data: JSON.stringify({
+              auctionId: payment.auctionId,
+              auctionTitle: auction.title,
+              amount: payment.amount,
+              paymentId: updatedPayment.id,
+            }),
+          });
+        }
+
+        console.log("Payment resubmitted successfully:", updatedPayment);
+        return updatedPayment;
+      }
+
+      // Create new payment if no rejected payment exists
       const [newPayment] = await db
         .insert(payments)
         .values({

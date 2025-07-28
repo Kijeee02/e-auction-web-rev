@@ -611,6 +611,7 @@ export default function AdminPanel() {
                           <TableHead>Harga Awal</TableHead>
                           <TableHead>Penawaran Tertinggi</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Pemenang</TableHead>
                           <TableHead>Berakhir</TableHead>
                           <TableHead>Aksi</TableHead>
                         </TableRow>
@@ -664,6 +665,20 @@ export default function AdminPanel() {
                                     ? "Berakhir"
                                     : "Dibatalkan"}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {auction.winnerId ? (
+                                <Badge
+                                  variant="secondary"
+                                  className="bg-green-100 text-green-800"
+                                >
+                                  Ada Pemenang
+                                </Badge>
+                              ) : (
+                                <span className="text-gray-500 text-sm">
+                                  Tidak ada
+                                </span>
+                              )}
                             </TableCell>
                             <TableCell>
                               <span className="text-sm text-gray-600">
@@ -742,13 +757,25 @@ export default function AdminPanel() {
                                   size="sm"
                                   disabled={
                                     !auction.id ||
-                                    deleteAuctionMutation.isPending
+                                    deleteAuctionMutation.isPending ||
+                                    auction.winnerId
                                   }
-                                  onClick={() =>
-                                    auction.id &&
-                                    deleteAuctionMutation.mutate(auction.id)
-                                  }
-                                  title="Hapus"
+                                  onClick={() => {
+                                    if (auction.winnerId) {
+                                      toast({
+                                        title: "Tidak dapat menghapus",
+                                        description: "Lelang yang sudah ada pemenang tidak dapat dihapus",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    if (auction.id) {
+                                      if (confirm(`Hapus lelang "${auction.title}"?`)) {
+                                        deleteAuctionMutation.mutate(auction.id);
+                                      }
+                                    }
+                                  }}
+                                  title={auction.winnerId ? "Tidak dapat menghapus lelang yang sudah ada pemenang" : "Hapus"}
                                 >
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
