@@ -452,6 +452,38 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.put("/api/user/profile", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { firstName, lastName, username, email, phone } = req.body;
+      
+      // Validate required fields
+      if (!firstName || !lastName || !username || !email) {
+        return res.status(400).json({ message: "All required fields must be filled" });
+      }
+
+      const updatedUser = await storage.updateUserProfile(req.user.id, {
+        firstName,
+        lastName,
+        username,
+        email,
+        phone,
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
   // Check and end expired auctions
   app.post("/api/admin/check-expired", async (req, res) => {
     try {

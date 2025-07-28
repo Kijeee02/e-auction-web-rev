@@ -82,6 +82,14 @@ export interface IStorage {
 
   // Automatic expiry checking
   checkAndEndExpiredAuctions(): Promise<number>;
+
+  updateUserProfile(userId: number, profileData: {
+    firstName: string;
+    lastName: string;
+    username: string;
+    email: string;
+    phone?: string;
+  }): Promise<User | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -322,9 +330,9 @@ export class DatabaseStorage implements IStorage {
     if (updates.endTime && currentAuction.status === "ended") {
       const now = new Date();
       const newEndTime = new Date(updates.endTime);
-      
+
       console.log(`[updateAuction] Auction ${id} status check: currentStatus=${currentAuction.status}, newEndTime=${newEndTime.toISOString()}, now=${now.toISOString()}`);
-      
+
       // If new end time is in the future, reactivate the auction
       if (newEndTime > now) {
         updates.status = "active";
@@ -544,31 +552,31 @@ export class DatabaseStorage implements IStorage {
       ));
   }
 
-  async getUserWatchlist(userId: number): Promise<AuctionWithDetails[]> {
-    const results = await db
-      .select({
-        auction: auctions,
-        category: categories,
-      })
-      .from(watchlist)
-      .innerJoin(auctions, eq(watchlist.auctionId, auctions.id))
-      .innerJoin(categories, eq(auctions.categoryId, categories.id))
-      .where(eq(watchlist.userId, userId))
-      .orderBy(desc(watchlist.createdAt));
+  async updateUserProfile(userId: number, profileData: {
+    firstName: string;
+    lastName: string;
+    username: string;
+    email: string;
+    phone?: string;
+  }): Promise<User | null> {
+    try {
+      const result = await db
+        .update(users)
+        .set({
+          firstName: profileData.firstName,
+          lastName: profileData.lastName,
+          username: profileData.username,
+          email: profileData.email,
+          phone: profileData.phone,
+        })
+        .where(eq(users.id, userId))
+        .returning();
 
-    const auctionsWithBids = await Promise.all(
-      results.map(async (result) => {
-        const auctionBids = await this.getBidsForAuction(result.auction.id);
-        return {
-          ...result.auction,
-          category: result.category,
-          bids: auctionBids,
-          _count: { bids: auctionBids.length },
-        };
-      })
-    );
-
-    return auctionsWithBids;
+      return result[0] || null;
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      throw error;
+    }
   }
 
     async getPaymentsForUser(userId: number): Promise<Payment[]> {
@@ -582,16 +590,16 @@ export class DatabaseStorage implements IStorage {
     async createPayment(payment: InsertPayment): Promise<Payment> {
         try {
             console.log("Creating payment with data:", payment);
-            
+
             const [newPayment] = await db.insert(payments).values({
                 ...payment,
                 createdAt: new Date()
             }).returning();
-            
+
             if (!newPayment) {
                 throw new Error("Payment creation returned null");
             }
-            
+
             console.log("Payment created successfully:", newPayment);
             return newPayment;
         } catch (error) {
@@ -642,7 +650,7 @@ export class DatabaseStorage implements IStorage {
       try {
         const now = new Date();
         console.log(`[verifyPayment] Updating payment ${paymentId} with status ${status}`, { documents });
-        
+
         const updateData: any = { 
           status: status, 
           verifiedBy: adminId, 
@@ -662,17 +670,17 @@ export class DatabaseStorage implements IStorage {
             updateData.handoverDocument = documents.handoverDocument;
           }
         }
-        
+
         const [payment] = await db
           .update(payments)
           .set(updateData)
           .where(eq(payments.id, paymentId))
           .returning();
-          
+
         if (!payment) {
           throw new Error(`Payment with id ${paymentId} not found`);
         }
-        
+
         console.log(`[verifyPayment] Payment ${paymentId} updated successfully:`, payment);
         return payment;
       } catch (error) {
@@ -700,9 +708,9 @@ export class DatabaseStorage implements IStorage {
         // Properly compare dates - endTime should be a Date object
         const endTime = new Date(auction.endTime);
         const isExpired = now >= endTime;
-        
+
         console.log(`[checkAndEndExpiredAuctions] Auction ${auction.id} (${auction.title}): endTime=${endTime.toISOString()}, now=${now.toISOString()}, expired=${isExpired}`);
-        
+
         if (isExpired) {
           actuallyExpired.push(auction);
         }

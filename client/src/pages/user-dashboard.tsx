@@ -1,18 +1,44 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { UserStats, Bid, AuctionWithDetails, Payment } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
+import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import Navbar from "@/components/navbar";
 import AuctionCard from "@/components/auction-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Gavel, Trophy, Eye, Star, ArrowRight, CreditCard } from "lucide-react";
+import { Gavel, Trophy, Eye, Star, ArrowRight, CreditCard, Edit } from "lucide-react";
 import { FileText } from "lucide-react";
 
 export default function UserDashboard() {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    firstName: user?.firstName || "",
+    lastName: user?.lastName || "",
+    username: user?.username || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+  });
+
+  // Update form when user data changes
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        firstName: user.firstName,
+        lastName: user.lastName,
+        username: user.username,
+        email: user.email,
+        phone: user.phone || "",
+      });
+    }
+  }, [user]);
 
   const { data: stats } = useQuery<UserStats>({
     queryKey: ["/api/user/stats"],
@@ -40,6 +66,45 @@ export default function UserDashboard() {
     queryKey: ["/api/user/payments"],
     enabled: !!user,
   });
+
+  // Update profile mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async (profileData: any) => {
+      const res = await apiRequest("PUT", "/api/user/profile", profileData);
+      if (!res.ok) throw new Error("Failed to update profile");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      setIsEditingProfile(false);
+      toast({
+        title: "Sukses",
+        description: "Profil berhasil diperbarui",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Gagal",
+        description: "Gagal memperbarui profil",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSaveProfile = () => {
+    updateProfileMutation.mutate(profileForm);
+  };
+
+  const handleCancelEdit = () => {
+    setProfileForm({
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      username: user?.username || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+    });
+    setIsEditingProfile(false);
+  };
 
   // Filter active bids (auctions that are still active)
   const activeBids = userBids.filter(bid => 
@@ -236,21 +301,22 @@ export default function UserDashboard() {
                   <div className="text-center py-8">
                     <CreditCard className="mx-auto h-12 w-12 text-gray-400 mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">
-                      No payment records
+                      Belum ada riwayat pembayaran
                     </h3>
                     <p className="text-gray-600">
-                      Your payment records will appear here after you win auctions.
+                      Riwayat pembayaran akan muncul di sini setelah Anda memenangkan lelang.
                     </p>
                   </div>
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Auction</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Payment Method</TableHead>
+                        <TableHead>Lelang</TableHead>
+                        <TableHead>Jumlah</TableHead>
+                        <TableHead>Metode Bayar</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Submitted</TableHead>
+                        <TableHead>Tanggal</TableHead>
+                        <TableHead>Dokumen</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -287,6 +353,58 @@ export default function UserDashboard() {
                             <span className="text-sm text-gray-600">
                               {new Date(payment.createdAt).toLocaleDateString('id-ID')}
                             </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              {payment.status === "verified" && (
+                                <>
+                                  {payment.invoiceDocument && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => window.open(payment.invoiceDocument, '_blank')}
+                                      className="text-xs"
+                                    >
+                                      <FileText className="h-3 w-3 mr-1" />
+                                      Invoice
+                                    </Button>
+                                  )}
+                                  {payment.releaseLetterDocument && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => window.open(payment.releaseLetterDocument, '_blank')}
+                                      className="text-xs"
+                                    >
+                                      <FileText className="h-3 w-3 mr-1" />
+                                      Surat Lepas
+                                    </Button>
+                                  )}
+                                  {payment.handoverDocument && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => window.open(payment.handoverDocument, '_blank')}
+                                      className="text-xs"
+                                    >
+                                      <FileText className="h-3 w-3 mr-1" />
+                                      Serah Terima
+                                    </Button>
+                                  )}
+                                  {!payment.invoiceDocument && !payment.releaseLetterDocument && !payment.handoverDocument && (
+                                    <span className="text-xs text-gray-500">Belum tersedia</span>
+                                  )}
+                                </>
+                              )}
+                              {payment.status === "pending" && (
+                                <span className="text-xs text-yellow-600">Menunggu verifikasi</span>
+                              )}
+                              {payment.status === "rejected" && payment.notes && (
+                                <span className="text-xs text-red-600" title={payment.notes}>
+                                  Lihat catatan
+                                </span>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -386,38 +504,111 @@ export default function UserDashboard() {
 
               <TabsContent value="profile" className="space-y-4">
                 <div className="max-w-2xl">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Informasi Profil</h3>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Nama Depan</label>
-                        <p className="mt-1 text-sm text-gray-900">{user?.firstName}</p>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-medium text-gray-900">Informasi Profil</h3>
+                    {!isEditingProfile ? (
+                      <Button onClick={() => setIsEditingProfile(true)} variant="outline">
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit Profil
+                      </Button>
+                    ) : (
+                      <div className="flex gap-2">
+                        <Button onClick={handleCancelEdit} variant="outline" size="sm">
+                          Batal
+                        </Button>
+                        <Button onClick={handleSaveProfile} disabled={updateProfileMutation.isPending} size="sm">
+                          {updateProfileMutation.isPending ? "Menyimpan..." : "Simpan"}
+                        </Button>
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Nama Belakang</label>
-                        <p className="mt-1 text-sm text-gray-900">{user?.lastName}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Username</label>
-                      <p className="mt-1 text-sm text-gray-900">{user?.username}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Email</label>
-                      <p className="mt-1 text-sm text-gray-900">{user?.email}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Nomor Telepon</label>
-                      <p className="mt-1 text-sm text-gray-900">{user?.phone || "Belum diisi"}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Rating</label>
-                      <div className="flex items-center mt-1">
-                        <Star className="h-4 w-4 text-yellow-500 mr-1" />
-                        <span className="text-sm text-gray-900">{stats?.rating || "0.0"}</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
+                  
+                  {!isEditingProfile ? (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Nama Depan</label>
+                          <p className="mt-1 text-sm text-gray-900">{user?.firstName}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Nama Belakang</label>
+                          <p className="mt-1 text-sm text-gray-900">{user?.lastName}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Username</label>
+                        <p className="mt-1 text-sm text-gray-900">{user?.username}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Email</label>
+                        <p className="mt-1 text-sm text-gray-900">{user?.email}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Nomor Telepon</label>
+                        <p className="mt-1 text-sm text-gray-900">{user?.phone || "Belum diisi"}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Rating</label>
+                        <div className="flex items-center mt-1">
+                          <Star className="h-4 w-4 text-yellow-500 mr-1" />
+                          <span className="text-sm text-gray-900">{stats?.rating || "0.0"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Nama Depan</label>
+                          <Input
+                            value={profileForm.firstName}
+                            onChange={(e) => setProfileForm({...profileForm, firstName: e.target.value})}
+                            placeholder="Nama depan"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">Nama Belakang</label>
+                          <Input
+                            value={profileForm.lastName}
+                            onChange={(e) => setProfileForm({...profileForm, lastName: e.target.value})}
+                            placeholder="Nama belakang"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Username</label>
+                        <Input
+                          value={profileForm.username}
+                          onChange={(e) => setProfileForm({...profileForm, username: e.target.value})}
+                          placeholder="Username"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Email</label>
+                        <Input
+                          type="email"
+                          value={profileForm.email}
+                          onChange={(e) => setProfileForm({...profileForm, email: e.target.value})}
+                          placeholder="Email"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Nomor Telepon</label>
+                        <Input
+                          value={profileForm.phone}
+                          onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+                          placeholder="Nomor telepon"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Rating</label>
+                        <div className="flex items-center mt-1">
+                          <Star className="h-4 w-4 text-yellow-500 mr-1" />
+                          <span className="text-sm text-gray-900">{stats?.rating || "0.0"}</span>
+                        </div>
+                      </div>
+                    </form>
+                  )}
                 </div>
               </TabsContent>
             </CardContent>
