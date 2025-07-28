@@ -12,12 +12,42 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Search, Bell, ChevronDown, User, Settings, LogOut, Gavel, Shield } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, Bell, ChevronDown, User, Settings, LogOut, Gavel, Shield, X } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Notification } from "@shared/schema";
 
 export default function Navbar() {
   const [location, setLocation] = useLocation();
   const { user, logoutMutation } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Get notifications based on user role
+  const notificationEndpoint = user?.role === "admin" ? "/api/admin/notifications" : "/api/notifications";
+  
+  const { data: notifications = [], isLoading: notificationsLoading } = useQuery<Notification[]>({
+    queryKey: [notificationEndpoint],
+    enabled: !!user,
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  // Mark notification as read
+  const markAsReadMutation = useMutation({
+    mutationFn: async (notificationId: number) => {
+      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to mark notification as read");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [notificationEndpoint] });
+    },
+  });
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,12 +128,84 @@ export default function Navbar() {
               // Authenticated User Menu
               <div className="flex items-center space-x-4">
                 {/* Notifications */}
-                <Button variant="ghost" size="sm" className="relative">
-                  <Bell className="h-5 w-5 text-gray-600" />
-                  <Badge className="absolute -top-2 -right-2 bg-destructive text-white text-xs w-5 h-5 flex items-center justify-center p-0">
-                    3
-                  </Badge>
-                </Button>
+                <DropdownMenu open={notificationOpen} onOpenChange={setNotificationOpen}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm" className="relative">
+                      <Bell className="h-5 w-5 text-gray-600" />
+                      {unreadCount > 0 && (
+                        <Badge className="absolute -top-2 -right-2 bg-destructive text-white text-xs w-5 h-5 flex items-center justify-center p-0">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+                    <div className="p-3 border-b">
+                      <h3 className="font-semibold text-sm">Notifikasi</h3>
+                      <p className="text-xs text-gray-500">
+                        {unreadCount} notifikasi belum dibaca
+                      </p>
+                    </div>
+                    
+                    {notificationsLoading ? (
+                      <div className="p-4 text-center text-sm text-gray-500">
+                        Memuat notifikasi...
+                      </div>
+                    ) : notifications.length === 0 ? (
+                      <div className="p-4 text-center text-sm text-gray-500">
+                        Tidak ada notifikasi
+                      </div>
+                    ) : (
+                      <div className="max-h-64 overflow-y-auto">
+                        {notifications.slice(0, 10).map((notification) => (
+                          <div
+                            key={notification.id}
+                            className={`p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer ${
+                              !notification.isRead ? "bg-blue-50" : ""
+                            }`}
+                            onClick={() => {
+                              if (!notification.isRead) {
+                                markAsReadMutation.mutate(notification.id);
+                              }
+                            }}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2">
+                                  <h4 className={`text-sm font-medium ${
+                                    !notification.isRead ? "text-blue-900" : "text-gray-900"
+                                  }`}>
+                                    {notification.title}
+                                  </h4>
+                                  {!notification.isRead && (
+                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                  )}
+                                </div>
+                                <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {new Date(notification.createdAt).toLocaleString("id-ID", {
+                                    dateStyle: "short",
+                                    timeStyle: "short",
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {notifications.length > 10 && (
+                      <div className="p-3 border-t text-center">
+                        <Button variant="ghost" size="sm" className="text-xs">
+                          Lihat Semua Notifikasi
+                        </Button>
+                      </div>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* User Dropdown */}
                 <DropdownMenu>

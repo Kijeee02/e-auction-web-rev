@@ -90,6 +90,25 @@
   @apply text-xs px-2 py-1 rounded-full font-medium;
 }
 
+.notification-item {
+  @apply p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors;
+}
+
+.notification-unread {
+  @apply bg-blue-50 border-l-4 border-l-blue-500;
+}
+
+.notification-read {
+  @apply bg-white;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .status-active {
   @apply bg-green-100 text-green-800;
 }

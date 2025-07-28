@@ -67,14 +67,15 @@ export default function UserDashboard() {
     queryKey: ["/api/user/watchlist"],
   });
 
-  const { data: wonAuctions = [] } = useQuery<AuctionWithDetails[]>({
+  const { data: wonAuctions = [], isLoading: wonAuctionsLoading } = useQuery({
     queryKey: ["/api/user/won-auctions"],
-    queryFn: async () => {
-      const res = await fetch("/api/user/won-auctions");
-      if (!res.ok) throw new Error("Failed to fetch won auctions");
-      return res.json();
-    },
     enabled: !!user,
+  });
+
+  const { data: userNotifications = [] } = useQuery({
+    queryKey: ["/api/notifications"],
+    enabled: !!user,
+    refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   const { data: userPayments = [] } = useQuery<(Payment & { auction: any })[]>({

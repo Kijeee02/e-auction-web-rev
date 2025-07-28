@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -40,6 +39,7 @@ import {
   Clock,
   Activity,
   TrendingUp,
+  Bell,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Auction, Payment } from "@shared/schema";
@@ -98,6 +98,12 @@ export default function AdminPanel() {
     },
   });
 
+  const { data: adminNotifications = [] } = useQuery({
+    queryKey: ["/api/admin/notifications"],
+    enabled: !!user && user.role === "admin",
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
   const { data: paymentHistory = [], isLoading: loadingPaymentHistory } = useQuery<
     (Payment & { auction: any; winner: any })[]
   >({
@@ -106,7 +112,7 @@ export default function AdminPanel() {
       const params = new URLSearchParams();
       if (paymentHistorySearch) params.append("search", paymentHistorySearch);
       if (paymentHistoryStatus !== "all") params.append("status", paymentHistoryStatus);
-      
+
       const res = await fetch(`/api/admin/payments/history?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch payment history");
       return res.json();
@@ -340,7 +346,7 @@ export default function AdminPanel() {
     },
   });
 
-  
+
 
   const archiveMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -913,6 +919,7 @@ export default function AdminPanel() {
                                         action: "reject",
                                       });
                                       setVerificationNotes("");
+                                    ```python
                                     }}
                                     disabled={verifyPaymentMutation.isPending}
                                   >
@@ -1121,72 +1128,77 @@ export default function AdminPanel() {
                   </Button>
                 </div>
 
+                
                 <div className="space-y-4">
-                  <Card className="border-l-4 border-l-blue-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-3">
-                          <div className="flex-shrink-0">
-                            <DollarSign className="h-5 w-5 text-blue-500 mt-1" />
+                  {adminNotifications.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Bell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Tidak ada notifikasi</p>
+                    </div>
+                  ) : (
+                    adminNotifications.map((notification) => (
+                      <Card 
+                        key={notification.id} 
+                        className={`border-l-4 ${
+                          !notification.isRead 
+                            ? notification.type === 'payment' 
+                              ? 'border-l-blue-500' 
+                              : notification.type === 'auction'
+                              ? 'border-l-green-500'
+                              : 'border-l-orange-500'
+                            : 'border-l-gray-300'
+                        }`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3">
+                              <div className="flex-shrink-0">
+                                {notification.type === 'payment' && (
+                                  <DollarSign className={`h-5 w-5 mt-1 ${
+                                    !notification.isRead ? 'text-blue-500' : 'text-gray-400'
+                                  }`} />
+                                )}
+                                {notification.type === 'auction' && (
+                                  <Gavel className={`h-5 w-5 mt-1 ${
+                                    !notification.isRead ? 'text-green-500' : 'text-gray-400'
+                                  }`} />
+                                )}
+                                {notification.type === 'system' && (
+                                  <Users className={`h-5 w-5 mt-1 ${
+                                    !notification.isRead ? 'text-orange-500' : 'text-gray-400'
+                                  }`} />
+                                )}
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-gray-900">
+                                  {notification.title}
+                                </h4>
+                                <p className="text-sm text-gray-600">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {new Date(notification.createdAt).toLocaleString("id-ID", {
+                                    dateStyle: "short",
+                                    timeStyle: "short",
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge 
+                              variant={!notification.isRead ? "secondary" : "outline"}
+                              className={
+                                !notification.isRead 
+                                  ? "bg-blue-100 text-blue-800" 
+                                  : ""
+                              }
+                            >
+                              {!notification.isRead ? "Baru" : "Dibaca"}
+                            </Badge>
                           </div>
-                          <div>
-                            <h4 className="font-medium text-gray-900">Pembayaran Baru</h4>
-                            <p className="text-sm text-gray-600">
-                              Pembayaran baru untuk lelang Honda Beat telah diterima
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">5 menit yang lalu</p>
-                          </div>
-                        </div>
-                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                          Baru
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-l-4 border-l-green-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-3">
-                          <div className="flex-shrink-0">
-                            <Gavel className="h-5 w-5 text-green-500 mt-1" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-900">Lelang Berakhir</h4>
-                            <p className="text-sm text-gray-600">
-                              Lelang Toyota Avanza telah berakhir dengan pemenang
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">1 jam yang lalu</p>
-                          </div>
-                        </div>
-                        <Badge variant="outline">
-                          Dibaca
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-l-4 border-l-orange-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-start space-x-3">
-                          <div className="flex-shrink-0">
-                            <Users className="h-5 w-5 text-orange-500 mt-1" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-900">User Baru</h4>
-                            <p className="text-sm text-gray-600">
-                              3 pengguna baru telah mendaftar hari ini
-                            </p>
-                            <p className="text-xs text-gray-500 mt-1">2 jam yang lalu</p>
-                          </div>
-                        </div>
-                        <Badge variant="outline">
-                          Dibaca
-                        </Badge>
-                      </div>
-                    </CardContent>
-                  </Card>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
                 </div>
               </TabsContent>
 
@@ -1873,6 +1885,7 @@ export default function AdminPanel() {
                   )}
                 </p>
                 <p className="text-sm text-gray-600 mt-1">Winner</p>
+                ```python
                 <p className="font-medium">
                   {verifyPaymentModal.payment.winner?.firstName}{" "}
                   {verifyPaymentModal.payment.winner?.lastName}
@@ -1895,7 +1908,7 @@ export default function AdminPanel() {
               {verifyPaymentModal.action === "verify" && (
                 <div className="mb-4 space-y-4 p-4 bg-blue-50 rounded-lg">
                   <h3 className="font-medium text-gray-900">Upload Dokumen (Opsional)</h3>
-                  
+
                   {/* Invoice Upload */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
