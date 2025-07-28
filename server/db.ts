@@ -94,6 +94,17 @@ export function initializeDatabase() {
         release_letter_document TEXT,
         handover_document TEXT
       );
+
+      CREATE TABLE IF NOT EXISTS notifications (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id),
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        is_read INTEGER NOT NULL DEFAULT 0,
+        data TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      );
     `);
 
     // Jangan hapus data production!

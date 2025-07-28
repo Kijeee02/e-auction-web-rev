@@ -536,12 +536,13 @@ export default function AdminPanel() {
         <Tabs defaultValue="auctions" className="w-full">
           <Card>
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="auctions">Kelola Lelang</TabsTrigger>
                 <TabsTrigger value="categories">Kategori</TabsTrigger>
                 <TabsTrigger value="payments">Pembayaran</TabsTrigger>
                 <TabsTrigger value="notifications">Notifikasi</TabsTrigger>
                 <TabsTrigger value="archived">Arsip Lelang</TabsTrigger>
+                <TabsTrigger value="settings">Pengaturan</TabsTrigger>
               </TabsList>
             </CardHeader>
 
@@ -1481,6 +1482,259 @@ export default function AdminPanel() {
                       ))}
                     </TableBody>
                   </Table>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="settings" className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Pengaturan Sistem
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Kelola pengaturan sistem, backup data, dan konfigurasi aplikasi
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* System Configuration */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Activity className="h-5 w-5 mr-2" />
+                        Konfigurasi Sistem
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          Minimum Increment Default (Rp)
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="50000"
+                          defaultValue="50000"
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          Auto-end Auctions Check Interval (detik)
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="300"
+                          defaultValue="300"
+                          className="w-full"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          Maximum Image Size (MB)
+                        </label>
+                        <Input
+                          type="number"
+                          placeholder="5"
+                          defaultValue="5"
+                          className="w-full"
+                        />
+                      </div>
+                      <Button className="w-full">
+                        Simpan Konfigurasi
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Backup & Maintenance */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <FileText className="h-5 w-5 mr-2" />
+                        Backup & Pemeliharaan
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-3">
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start"
+                          onClick={() => {
+                            window.open('/api/admin/export-data', '_blank');
+                          }}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Export Data Lelang
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start"
+                          onClick={() => {
+                            fetch('/api/admin/backup-database', { method: 'POST' })
+                              .then(() => toast({ title: "Backup berhasil dibuat" }))
+                              .catch(() => toast({ title: "Backup gagal", variant: "destructive" }));
+                          }}
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Backup Database
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="w-full justify-start"
+                          onClick={() => {
+                            if (confirm("Yakin ingin membersihkan cache sistem?")) {
+                              fetch('/api/admin/clear-cache', { method: 'POST' })
+                                .then(() => toast({ title: "Cache berhasil dibersihkan" }))
+                                .catch(() => toast({ title: "Gagal membersihkan cache", variant: "destructive" }));
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Bersihkan Cache
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* User Management */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Users className="h-5 w-5 mr-2" />
+                        Manajemen Pengguna
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="p-3 bg-blue-50 rounded">
+                          <div className="font-medium text-blue-900">Total User</div>
+                          <div className="text-2xl font-bold text-blue-600">
+                            {statsLoading ? "..." : realStats?.totalUsers || 0}
+                          </div>
+                        </div>
+                        <div className="p-3 bg-green-50 rounded">
+                          <div className="font-medium text-green-900">User Aktif</div>
+                          <div className="text-2xl font-bold text-green-600">
+                            {statsLoading ? "..." : realStats?.activeUsers || 0}
+                          </div>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => navigate('/admin/users')}
+                      >
+                        <Users className="h-4 w-4 mr-2" />
+                        Kelola Pengguna
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* System Info */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Activity className="h-5 w-5 mr-2" />
+                        Informasi Sistem
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="text-sm space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Versi Aplikasi:</span>
+                          <span className="font-medium">v1.0.0</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Database:</span>
+                          <span className="font-medium">SQLite</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Environment:</span>
+                          <span className="font-medium">Production</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Last Backup:</span>
+                          <span className="font-medium">Tidak tersedia</span>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => {
+                          fetch('/api/admin/system-health')
+                            .then(res => res.json())
+                            .then(data => {
+                              toast({
+                                title: "System Health Check",
+                                description: `Status: ${data.status || 'OK'}`
+                              });
+                            })
+                            .catch(() => {
+                              toast({
+                                title: "Health check gagal",
+                                variant: "destructive"
+                              });
+                            });
+                        }}
+                      >
+                        <Activity className="h-4 w-4 mr-2" />
+                        Cek Status Sistem
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  {/* Email & Notification Settings */}
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle className="flex items-center">
+                        <Bell className="h-5 w-5 mr-2" />
+                        Pengaturan Notifikasi
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          <h4 className="font-medium">Notifikasi Email</h4>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Pembayaran Baru</span>
+                              <Checkbox defaultChecked />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Lelang Berakhir</span>
+                              <Checkbox defaultChecked />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">User Baru</span>
+                              <Checkbox />
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-4">
+                          <h4 className="font-medium">Notifikasi Push</h4>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Bid Baru</span>
+                              <Checkbox defaultChecked />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Update Sistem</span>
+                              <Checkbox defaultChecked />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm">Alert Keamanan</span>
+                              <Checkbox defaultChecked />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-6 pt-4 border-t">
+                        <Button>
+                          Simpan Pengaturan Notifikasi
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </TabsContent>
             </CardContent>

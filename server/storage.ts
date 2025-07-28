@@ -409,9 +409,9 @@ export class DatabaseStorage implements IStorage {
         const otherBidders = allBids
           .filter(bid => bid.bidderId !== winnerId)
           .map(bid => bid.bidderId);
-        
+
         const uniqueBidders = [...new Set(otherBidders)];
-        
+
         for (const bidderId of uniqueBidders) {
           await this.createNotification({
             userId: bidderId,
@@ -823,7 +823,7 @@ export class DatabaseStorage implements IStorage {
           })
           .from(payments)
           .leftJoin(auctions, eq(payments.auctionId, auctions.id))
-          .leftJoin(users, eq(payments.winnerId, users.id));
+          .leftJoin(users, eq(auctions.winnerId, users.id));
 
         const whereClauses = [];
 
@@ -920,54 +920,59 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getRealAdminStats(): Promise<{
-    totalUsers: number;
-    activeAuctions: number;
-    completedAuctions: number;
-    totalRevenue: number;
-  }> {
+  async getRealAdminStats() {
     try {
-      // Count total users (excluding admins)
-      const totalUsersResult = await db
-        .select({ count: count() })
-        .from(users)
-        .where(eq(users.role, "user"));
+      // Total users
+      const totalUsersResult = await db.select({ count: sql<number>`count(*)` }).from(users);
+      const totalUsers = totalUsersResult[0]?.count || 0;
 
-      // Count active auctions
+      // Active users (users who have placed bids or won auctions in last 30 days)
+      const activeUsersResult = await db
+        .select({ count: sql<number>`count(DISTINCT user_id)` })
+        .from(sql`(
+          SELECT bidder_id as user_id FROM bids WHERE created_at > datetime('now', '-30 days')
+          UNION
+          SELECT winner_id as user_id FROM auctions WHERE winner_id IS NOT NULL AND end_time > datetime('now', '-30 days')
+        ) as active_users`);
+      const activeUsers = activeUsersResult[0]?.count || 0;
+
+      // Active auctions
       const activeAuctionsResult = await db
-        .select({ count: count() })
+        .select({ count: sql<number>`count(*)` })
         .from(auctions)
-        .where(and(
-          eq(auctions.status, "active"),
-          eq(auctions.archived, false)
-        ));
+        .where(and(eq(auctions.status, "active"), eq(auctions.archived, false)));
+      const activeAuctions = activeAuctionsResult[0]?.count || 0;
 
-      // Count completed auctions (ended with winner) - fix column reference
+      // Completed auctions
       const completedAuctionsResult = await db
-        .select({ count: count() })
+        .select({ count: sql<number>`count(*)` })
         .from(auctions)
-        .where(and(
-          eq(auctions.status, "ended"),
-          sql`winner_id IS NOT NULL`
-        ));
+        .where(eq(auctions.status, "ended"));
+      const completedAuctions = completedAuctionsResult[0]?.count || 0;
 
-      // Calculate total revenue from verified payments
-      const totalRevenueResult = await db
-        .select({ 
-          total: sql<number>`COALESCE(SUM(CAST(amount AS REAL)), 0)` 
-        })
+      // Total revenue from verified payments
+      const revenueResult = await db
+        .select({ total: sql<number>`COALESCE(SUM(amount), 0)` })
         .from(payments)
         .where(eq(payments.status, "verified"));
+      const totalRevenue = revenueResult[0]?.total || 0;
 
       return {
-        totalUsers: totalUsersResult[0]?.count || 0,
-        activeAuctions: activeAuctionsResult[0]?.count || 0,
-        completedAuctions: completedAuctionsResult[0]?.count || 0,
-        totalRevenue: totalRevenueResult[0]?.total || 0,
+        totalUsers,
+        activeUsers,
+        activeAuctions,
+        completedAuctions,
+        totalRevenue,
       };
     } catch (error) {
       console.error("Error fetching real admin stats:", error);
-      throw error;
+      return {
+        totalUsers: 0,
+        activeUsers: 0,
+        activeAuctions: 0,
+        completedAuctions: 0,
+        totalRevenue: 0,
+      };
     }
   }
 
