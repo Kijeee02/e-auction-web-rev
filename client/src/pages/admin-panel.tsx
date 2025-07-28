@@ -340,38 +340,7 @@ export default function AdminPanel() {
     },
   });
 
-  const checkExpiredMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", `/api/admin/check-expired`);
-      if (!res.ok) throw new Error("Failed to check expired auctions");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/auctions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/real-stats"] });
-      toast({
-        title: "Success",
-        description: "Expired auctions checked successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to check expired auctions",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Auto-check expired auctions every 5 minutes
-  useEffect(() => {
-    const interval = setInterval(() => {
-      console.log("[AdminPanel] Running automatic expired auction check...");
-      checkExpiredMutation.mutate();
-    }, 300000); // 5 minutes
-
-    return () => clearInterval(interval);
-  }, [checkExpiredMutation]);
+  
 
   const archiveMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -567,14 +536,14 @@ export default function AdminPanel() {
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="flex-shrink-0">
-                  <Activity className="h-8 w-8 text-orange-600" />
+                  <DollarSign className="h-8 w-8 text-orange-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">
-                    Pembayaran Pending
+                    Total Revenue
                   </p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {loadingPayments ? "..." : pendingPayments.length}
+                    {statsLoading ? "..." : `Rp ${(realStats?.totalRevenue || 0).toLocaleString('id-ID')}`}
                   </p>
                 </div>
               </div>
@@ -605,11 +574,12 @@ export default function AdminPanel() {
                     </Button>
                     <Button 
                       variant="outline"
-                      onClick={() => checkExpiredMutation.mutate()}
-                      disabled={checkExpiredMutation.isPending}
+                      onClick={() => {
+                        window.open('/api/admin/export-data', '_blank');
+                      }}
                     >
-                      <Clock className="h-4 w-4 mr-2" />
-                      Cek Expired
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export Data
                     </Button>
                   </div>
 

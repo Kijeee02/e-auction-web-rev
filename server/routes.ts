@@ -484,18 +484,35 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Check and end expired auctions
-  app.post("/api/admin/check-expired", async (req, res) => {
+  // Export auction data
+  app.get("/api/admin/export-data", async (req, res) => {
     try {
       if (!req.isAuthenticated() || req.user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      await storage.checkAndEndExpiredAuctions();
-      res.json({ message: "Expired auctions checked and processed" });
+      const exportData = await storage.exportAuctionData();
+      
+      // Set headers for CSV download
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename="auction_data.csv"');
+      
+      // Convert to CSV format
+      if (exportData.length === 0) {
+        return res.send("No data available");
+      }
+      
+      const headers = Object.keys(exportData[0]).join(',');
+      const csvData = exportData.map(row => 
+        Object.values(row).map(value => 
+          typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value
+        ).join(',')
+      ).join('\n');
+      
+      res.send(headers + '\n' + csvData);
     } catch (error) {
-      console.error("Error checking expired auctions:", error);
-      res.status(500).json({ message: "Failed to check expired auctions" });
+      console.error("Error exporting data:", error);
+      res.status(500).json({ message: "Failed to export data" });
     }
   });
 

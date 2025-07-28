@@ -840,13 +840,13 @@ export class DatabaseStorage implements IStorage {
           eq(auctions.archived, false)
         ));
 
-      // Count completed auctions (ended with winner)
+      // Count completed auctions (ended with winner) - fix column reference
       const completedAuctionsResult = await db
         .select({ count: count() })
         .from(auctions)
         .where(and(
           eq(auctions.status, "ended"),
-          sql`winnerId IS NOT NULL`
+          sql`winner_id IS NOT NULL`
         ));
 
       // Calculate total revenue from verified payments
@@ -865,6 +865,44 @@ export class DatabaseStorage implements IStorage {
       };
     } catch (error) {
       console.error("Error fetching real admin stats:", error);
+      throw error;
+    }
+  }
+
+  async exportAuctionData(): Promise<any[]> {
+    try {
+      const results = await db
+        .select({
+          auction: auctions,
+          category: categories,
+        })
+        .from(auctions)
+        .innerJoin(categories, eq(auctions.categoryId, categories.id))
+        .orderBy(desc(auctions.createdAt));
+
+      return results.map(result => ({
+        id: result.auction.id,
+        title: result.auction.title,
+        description: result.auction.description,
+        category: result.category.name,
+        startingPrice: result.auction.startingPrice,
+        currentPrice: result.auction.currentPrice,
+        condition: result.auction.condition,
+        location: result.auction.location,
+        status: result.auction.status,
+        startTime: result.auction.startTime,
+        endTime: result.auction.endTime,
+        winnerId: result.auction.winnerId,
+        archived: result.auction.archived,
+        productionYear: result.auction.productionYear,
+        plateNumber: result.auction.plateNumber,
+        chassisNumber: result.auction.chassisNumber,
+        engineNumber: result.auction.engineNumber,
+        documentInfo: result.auction.documentInfo,
+        createdAt: result.auction.createdAt,
+      }));
+    } catch (error) {
+      console.error("Error exporting auction data:", error);
       throw error;
     }
   }
