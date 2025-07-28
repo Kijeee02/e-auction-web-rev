@@ -110,6 +110,7 @@ export interface IStorage {
   getNotification(id: number): Promise<Notification | undefined>;
   markNotificationAsRead(notificationId: number, userId: number): Promise<void>;
   markAllNotificationsAsRead(userId: number): Promise<void>;
+  deleteNotification(notificationId: number): Promise<void>;
 
   // Admin Notifications
   createAdminNotification(type: string, title: string, message: string, data: any): Promise<void>;
@@ -1160,6 +1161,17 @@ export class DatabaseStorage implements IStorage {
         .where(eq(notifications.userId, userId));
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
+      throw error;
+    }
+  }
+
+  async deleteNotification(notificationId: number): Promise<void> {
+    try {
+      await db
+        .delete(notifications)
+        .where(eq(notifications.id, notificationId));
+    } catch (error) {
+      console.error("Error deleting notification:", error);
       throw error;
     }
   }

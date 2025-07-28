@@ -312,34 +312,7 @@ export default function AuctionDetail() {
               </div>
             )}
 
-            {/* Payment Form or Status */}
-            {auction.status === "ended" && auction.winnerId === user?.id && (
-              <Card className="mt-6">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <CreditCard className="h-5 w-5 mr-2" />
-                    Pembayaran
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {paymentStatus === "loading" ? (
-                    <div>Loading payment status...</div>
-                  ) : paymentStatus === "not_submitted" ? (
-                    <PaymentForm
-                      auction={auction}
-                      onPaymentSubmitted={() => {
-                        setPaymentStatus("submitted");
-                        queryClient.invalidateQueries({
-                          queryKey: [`/api/payments/auction/${auction.id}`],
-                        });
-                      }}
-                    />
-                  ) : (
-                    <PaymentStatus auctionId={auction.id} />
-                  )}
-                </CardContent>
-              </Card>
-            )}
+            
 
             <Card>
               <CardHeader>

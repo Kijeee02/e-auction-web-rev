@@ -47,6 +47,34 @@ export default function Navbar() {
     },
   });
 
+  // Delete notification
+  const deleteNotificationMutation = useMutation({
+    mutationFn: async (notificationId: number) => {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to delete notification");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [notificationEndpoint] });
+    },
+  });
+
+  // Mark all notifications as read
+  const markAllAsReadMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/notifications/mark-all-read`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to mark all notifications as read");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [notificationEndpoint] });
+    },
+  });
+
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   const handleSearch = (e: React.FormEvent) => {
@@ -141,10 +169,28 @@ export default function Navbar() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
                     <div className="p-3 border-b">
-                      <h3 className="font-semibold text-sm">Notifikasi</h3>
-                      <p className="text-xs text-gray-500">
-                        {unreadCount} notifikasi belum dibaca
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold text-sm">Notifikasi</h3>
+                          <p className="text-xs text-gray-500">
+                            {unreadCount} notifikasi belum dibaca
+                          </p>
+                        </div>
+                        {unreadCount > 0 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markAllAsReadMutation.mutate();
+                            }}
+                            className="text-xs h-6 px-2"
+                            disabled={markAllAsReadMutation.isPending}
+                          >
+                            Tandai Semua
+                          </Button>
+                        )}
+                      </div>
                     </div>
 
                     {notificationsLoading ? (
@@ -163,52 +209,54 @@ export default function Navbar() {
                           return (
                             <div
                               key={notification.id}
-                              className={`p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors ${
+                              className={`p-3 border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
                                 !notification.isRead ? "bg-blue-50" : ""
                               }`}
-                              onClick={() => {
-                                // Mark as read
-                                if (!notification.isRead) {
-                                  markAsReadMutation.mutate(notification.id);
-                                }
-                                
-                                // Handle navigation based on notification type and user role
-                                if (user?.role === "admin") {
-                                  // Admin navigation
-                                  if (notification.type === "payment") {
-                                    setNotificationOpen(false);
-                                    setLocation("/admin");
-                                    // Use setTimeout to ensure navigation completes before hash change
-                                    setTimeout(() => {
-                                      window.location.hash = "payments";
-                                    }, 100);
-                                  } else if (notification.type === "auction" && notificationData.auctionId) {
-                                    setNotificationOpen(false);
-                                    setLocation(`/auction/${notificationData.auctionId}`);
-                                  } else {
-                                    setNotificationOpen(false);
-                                    setLocation("/admin");
-                                  }
-                                } else {
-                                  // Regular user navigation
-                                  if (notificationData.auctionId) {
-                                    // For any notification with auctionId, go to auction detail
-                                    setNotificationOpen(false);
-                                    setLocation(`/auction/${notificationData.auctionId}`);
-                                  } else if (notification.type === "bid" || notification.type === "auction") {
-                                    // For bid/auction notifications without auctionId, go to dashboard
-                                    setNotificationOpen(false);
-                                    setLocation("/dashboard");
-                                  } else if (notification.type === "payment") {
-                                    // For payment notifications, go to dashboard
-                                    setNotificationOpen(false);
-                                    setLocation("/dashboard");
-                                  }
-                                }
-                              }}
                             >
                               <div className="flex items-start justify-between">
-                                <div className="flex-1">
+                                <div 
+                                  className="flex-1 cursor-pointer"
+                                  onClick={() => {
+                                    // Mark as read
+                                    if (!notification.isRead) {
+                                      markAsReadMutation.mutate(notification.id);
+                                    }
+                                    
+                                    // Handle navigation based on notification type and user role
+                                    if (user?.role === "admin") {
+                                      // Admin navigation
+                                      if (notification.type === "payment") {
+                                        setNotificationOpen(false);
+                                        setLocation("/admin");
+                                        // Use setTimeout to ensure navigation completes before hash change
+                                        setTimeout(() => {
+                                          window.location.hash = "payments";
+                                        }, 100);
+                                      } else if (notification.type === "auction" && notificationData.auctionId) {
+                                        setNotificationOpen(false);
+                                        setLocation(`/auction/${notificationData.auctionId}`);
+                                      } else {
+                                        setNotificationOpen(false);
+                                        setLocation("/admin");
+                                      }
+                                    } else {
+                                      // Regular user navigation
+                                      if (notificationData.auctionId) {
+                                        // For any notification with auctionId, go to auction detail
+                                        setNotificationOpen(false);
+                                        setLocation(`/auction/${notificationData.auctionId}`);
+                                      } else if (notification.type === "bid" || notification.type === "auction") {
+                                        // For bid/auction notifications without auctionId, go to dashboard
+                                        setNotificationOpen(false);
+                                        setLocation("/dashboard");
+                                      } else if (notification.type === "payment") {
+                                        // For payment notifications, go to dashboard
+                                        setNotificationOpen(false);
+                                        setLocation("/dashboard");
+                                      }
+                                    }
+                                  }}
+                                >
                                   <div className="flex items-center space-x-2">
                                     <h4 className={`text-sm font-medium ${
                                       !notification.isRead ? "text-blue-900" : "text-gray-900"
@@ -233,6 +281,34 @@ export default function Navbar() {
                                       📱 Klik untuk melihat detail
                                     </p>
                                   )}
+                                </div>
+                                <div className="flex flex-col space-y-1 ml-2">
+                                  {!notification.isRead && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        markAsReadMutation.mutate(notification.id);
+                                      }}
+                                      className="text-xs h-6 px-2 text-blue-600 hover:text-blue-800"
+                                      disabled={markAsReadMutation.isPending}
+                                    >
+                                      ✓ Dibaca
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteNotificationMutation.mutate(notification.id);
+                                    }}
+                                    className="text-xs h-6 px-2 text-red-600 hover:text-red-800"
+                                    disabled={deleteNotificationMutation.isPending}
+                                  >
+                                    🗑️ Hapus
+                                  </Button>
                                 </div>
                               </div>
                             </div>

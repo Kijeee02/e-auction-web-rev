@@ -841,6 +841,47 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.post("/api/notifications/mark-all-read", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      await storage.markAllNotificationsAsRead(req.user.id);
+      res.json({ message: "All notifications marked as read" });
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
+      res.status(500).json({ message: "Failed to mark all notifications as read" });
+    }
+  });
+
+  app.delete("/api/notifications/:id", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const notificationId = parseInt(req.params.id);
+      
+      // Get the notification first to verify ownership or admin access
+      const notification = await storage.getNotification(notificationId);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+
+      // Allow user to delete their own notifications or admin to delete any notification
+      if (notification.userId === req.user.id || req.user.role === "admin") {
+        await storage.deleteNotification(notificationId);
+        res.json({ message: "Notification deleted successfully" });
+      } else {
+        res.status(403).json({ message: "Access denied" });
+      }
+    } catch (error) {
+      console.error("Error deleting notification:", error);
+      res.status(500).json({ message: "Failed to delete notification" });
+    }
+  });
+
   // Admin Settings routes
   app.post("/api/admin/backup-database", async (req, res) => {
     try {
