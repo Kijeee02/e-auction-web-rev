@@ -43,6 +43,7 @@ export function initializeDatabase() {
       console.log('✓ Added avatar column to users table');
     }
 
+    sqlite.exec(`
       CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
