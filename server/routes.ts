@@ -138,6 +138,19 @@ export function registerRoutes(app: Express): Server {
 
       const auctionData = insertAuctionSchema.parse(req.body);
       const auction = await storage.createAuction(auctionData);
+      
+      // Create admin notification for new auction
+      await storage.createAdminNotification(
+        "auction",
+        "Lelang Baru Ditambahkan",
+        `Lelang baru "${auction.title}" telah berhasil ditambahkan ke sistem.`,
+        {
+          auctionId: auction.id,
+          auctionTitle: auction.title,
+          startingPrice: auction.startingPrice,
+        }
+      );
+      
       res.status(201).json(auction);
     } catch (error) {
       if (error instanceof z.ZodError) {

@@ -157,43 +157,69 @@ export default function Navbar() {
                       </div>
                     ) : (
                       <div className="max-h-64 overflow-y-auto">
-                        {notifications.slice(0, 10).map((notification) => (
-                          <div
-                            key={notification.id}
-                            className={`p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer ${
-                              !notification.isRead ? "bg-blue-50" : ""
-                            }`}
-                            onClick={() => {
-                              if (!notification.isRead) {
-                                markAsReadMutation.mutate(notification.id);
-                              }
-                            }}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2">
-                                  <h4 className={`text-sm font-medium ${
-                                    !notification.isRead ? "text-blue-900" : "text-gray-900"
-                                  }`}>
-                                    {notification.title}
-                                  </h4>
-                                  {!notification.isRead && (
-                                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                        {notifications.slice(0, 10).map((notification) => {
+                          const notificationData = notification.data ? JSON.parse(notification.data) : {};
+                          
+                          return (
+                            <div
+                              key={notification.id}
+                              className={`p-3 border-b last:border-b-0 hover:bg-gray-50 cursor-pointer transition-colors ${
+                                !notification.isRead ? "bg-blue-50" : ""
+                              }`}
+                              onClick={() => {
+                                // Mark as read
+                                if (!notification.isRead) {
+                                  markAsReadMutation.mutate(notification.id);
+                                }
+                                
+                                // Handle navigation based on notification type and data
+                                if (notificationData.auctionId && (notificationData.action === "view_auction" || notificationData.action === "make_payment")) {
+                                  // Close notification dropdown
+                                  setNotificationOpen(false);
+                                  // Navigate to auction detail
+                                  window.location.href = `/auction/${notificationData.auctionId}`;
+                                } else if (notification.type === "payment" && user?.role === "admin") {
+                                  // For admin payment notifications, go to admin panel payments tab
+                                  setNotificationOpen(false);
+                                  window.location.href = `/admin#payments`;
+                                } else if (notification.type === "auction" && user?.role === "admin") {
+                                  // For admin auction notifications, go to admin panel
+                                  setNotificationOpen(false);
+                                  window.location.href = `/admin`;
+                                }
+                              }}
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2">
+                                    <h4 className={`text-sm font-medium ${
+                                      !notification.isRead ? "text-blue-900" : "text-gray-900"
+                                    }`}>
+                                      {notification.title}
+                                    </h4>
+                                    {!notification.isRead && (
+                                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-gray-600 mt-1 line-clamp-2">
+                                    {notification.message}
+                                  </p>
+                                  <p className="text-xs text-gray-400 mt-1">
+                                    {new Date(notification.createdAt).toLocaleString("id-ID", {
+                                      dateStyle: "short",
+                                      timeStyle: "short",
+                                    })}
+                                  </p>
+                                  {(notificationData.auctionId || (notification.type === "payment" && user?.role === "admin")) && (
+                                    <p className="text-xs text-blue-600 mt-1 font-medium">
+                                      📱 Klik untuk melihat detail
+                                    </p>
                                   )}
                                 </div>
-                                <p className="text-xs text-gray-600 mt-1 line-clamp-2">
-                                  {notification.message}
-                                </p>
-                                <p className="text-xs text-gray-400 mt-1">
-                                  {new Date(notification.createdAt).toLocaleString("id-ID", {
-                                    dateStyle: "short",
-                                    timeStyle: "short",
-                                  })}
-                                </p>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
 

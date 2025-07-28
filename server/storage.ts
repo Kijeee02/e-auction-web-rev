@@ -109,6 +109,9 @@ export interface IStorage {
   getAdminNotifications(): Promise<Notification[]>;
   markNotificationAsRead(notificationId: number, userId: number): Promise<void>;
   markAllNotificationsAsRead(userId: number): Promise<void>;
+
+  // Admin Notifications
+  createAdminNotification(type: string, title: string, message: string, data: any): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -697,25 +700,53 @@ export class DatabaseStorage implements IStorage {
     }
 
     async createPayment(payment: InsertPayment): Promise<Payment> {
-        try {
-            console.log("Creating payment with data:", payment);
+    try {
+      const [newPayment] = await db
+        .insert(payments)
+        .values({
+          ...payment,
+          createdAt: new Date(),
+        })
+        .returning();
 
-            const [newPayment] = await db.insert(payments).values({
-                ...payment,
-                createdAt: new Date()
-            }).returning();
+      // Get auction details for notification
+      const auction = await this.getAuction(payment.auctionId);
+      if (auction) {
+        // Notify admins about new payment submission
+        await this.createAdminNotification(
+          "payment",
+          "Pembayaran Baru Diterima",
+          `Pembayaran baru untuk lelang "${auction.title}" telah diterima dan menunggu verifikasi.`,
+          {
+            auctionId: payment.auctionId,
+            auctionTitle: auction.title,
+            amount: payment.amount,
+            paymentId: newPayment.id,
+          }
+        );
 
-            if (!newPayment) {
-                throw new Error("Payment creation returned null");
-            }
+        // Notify user about payment submission
+        await this.createNotification({
+          userId: payment.winnerId,
+          type: "payment",
+          title: "Pembayaran Berhasil Dikirim",
+          message: `Pembayaran Anda untuk lelang "${auction.title}" telah diterima dan sedang diverifikasi oleh admin.`,
+          data: JSON.stringify({
+            auctionId: payment.auctionId,
+            auctionTitle: auction.title,
+            amount: payment.amount,
+            paymentId: newPayment.id,
+          }),
+        });
+      }
 
-            console.log("Payment created successfully:", newPayment);
-            return newPayment;
-        } catch (error) {
-            console.error("Error in createPayment:", error);
-            throw new Error(`Failed to create payment: ${error instanceof Error ? error.message : String(error)}`);
-        }
+      console.log("Payment created successfully:", newPayment);
+      return newPayment;
+    } catch (error) {
+      console.error("Error creating payment:", error);
+      throw error;
     }
+  }
 
     async updatePayment(id: number, updates: Partial<Payment>): Promise<Payment | undefined> {
         const [payment] = await db
@@ -755,71 +786,88 @@ export class DatabaseStorage implements IStorage {
       }));
     }
 
-    async verifyPayment(paymentId: number, adminId: number, status: string, notes?: string, documents?: any): Promise<Payment> {
-      try {
-        const now = new Date();
-        console.log(`[verifyPayment] Updating payment ${paymentId} with status ${status}`, { documents });
+    async verifyPayment(paymentId: number, verifiedBy: number, status: string, notes?: string, documents?: any): Promise<Payment> {
+    try {
+      console.log(`[Storage] Verifying payment ${paymentId} with status ${status}`);
 
-        const updateData: any = { 
-          status: status, 
-          verifiedBy: adminId, 
-          notes: notes || null,
-          verifiedAt: now
-        };
+      const updateData: any = {
+        status,
+        verifiedAt: new Date(),
+        verifiedBy,
+        notes: notes || null,
+      };
 
-        // Add document fields if provided
-        if (documents && status === "verified") {
-          if (documents.invoiceDocument) {
-            updateData.invoiceDocument = documents.invoiceDocument;
-          }
-          if (documents.releaseLetterDocument) {
-            updateData.releaseLetterDocument = documents.releaseLetterDocument;
-          }
-          if (documents.handoverDocument) {
-            updateData.handoverDocument = documents.handoverDocument;
-          }
-        }
+      // Add documents if provided and status is verified
+      if (status === "verified" && documents) {
+        updateData.invoiceDocument = documents.invoiceDocument || null;
+        updateData.releaseLetterDocument = documents.releaseLetterDocument || null;
+        updateData.handoverDocument = documents.handoverDocument || null;
+      }
 
-        const [payment] = await db
-          .update(payments)
-          .set(updateData)
-          .where(eq(payments.id, paymentId))
-          .returning();
+      const [updatedPayment] = await db
+        .update(payments)
+        .set(updateData)
+        .where(eq(payments.id, paymentId))
+        .returning();
 
-        if (!payment) {
-          throw new Error(`Payment with id ${paymentId} not found`);
-        }
+      // Get auction and user details for notification
+      const auction = await this.getAuction(updatedPayment.auctionId);
 
-        // Create notification for user
-        if (payment.winnerId) {
-          const auction = await this.getAuction(payment.auctionId);
-          const statusText = status === "verified" ? "disetujui" : "ditolak";
-          const message = status === "verified" 
-            ? `Pembayaran Anda untuk ${auction?.title} telah disetujui. Dokumen telah tersedia.`
-            : `Pembayaran Anda untuk ${auction?.title} ditolak. ${notes || "Silakan hubungi admin untuk informasi lebih lanjut."}`;
-
+      if (auction && updatedPayment.winnerId) {
+        if (status === "verified") {
+          // Notify user about payment approval
           await this.createNotification({
-            userId: payment.winnerId,
+            userId: updatedPayment.winnerId,
             type: "payment",
-            title: `Pembayaran ${statusText === "disetujui" ? "Disetujui" : "Ditolak"}`,
-            message,
+            title: "✅ Pembayaran Disetujui",
+            message: `Pembayaran Anda untuk lelang "${auction.title}" telah disetujui. Silakan cek detail lelang untuk informasi lebih lanjut.`,
             data: JSON.stringify({
-              paymentId,
-              auctionId: payment.auctionId,
-              auctionTitle: auction?.title,
-              status,
-              documents: documents || null,
+              auctionId: updatedPayment.auctionId,
+              auctionTitle: auction.title,
+              amount: updatedPayment.amount,
+              paymentId: updatedPayment.id,
+              action: "view_auction",
+            }),
+          });
+
+          // Notify admins about payment completion
+          await this.createAdminNotification(
+            "payment",
+            "Pembayaran Telah Diverifikasi",
+            `Pembayaran untuk lelang "${auction.title}" telah berhasil diverifikasi dan disetujui.`,
+            {
+              auctionId: updatedPayment.auctionId,
+              auctionTitle: auction.title,
+              amount: updatedPayment.amount,
+              paymentId: updatedPayment.id,
+            }
+          );
+        } else if (status === "rejected") {
+          // Notify user about payment rejection
+          await this.createNotification({
+            userId: updatedPayment.winnerId,
+            type: "payment",
+            title: "❌ Pembayaran Ditolak",
+            message: `Pembayaran Anda untuk lelang "${auction.title}" ditolak. ${notes ? `Alasan: ${notes}` : ''} Klik untuk melihat detail dan mengajukan pembayaran ulang.`,
+            data: JSON.stringify({
+              auctionId: updatedPayment.auctionId,
+              auctionTitle: auction.title,
+              amount: updatedPayment.amount,
+              paymentId: updatedPayment.id,
+              action: "view_auction",
+              reason: notes,
             }),
           });
         }
-
-        console.log(`[verifyPayment] Payment ${paymentId} updated successfully:`, payment);
-        return payment;
-      } catch (error) {
-        console.error(`[verifyPayment] Error updating payment ${paymentId}:`, error);
-        throw error;
       }
+
+      console.log(`[Storage] Payment verification successful:`, updatedPayment);
+      return updatedPayment;
+    } catch (error) {
+      console.error(`[Storage] Payment verification error:`, error);
+      throw error;
     }
+  }
 
     async getPaymentHistory(search?: string, statusFilter?: string): Promise<(Payment & { auction?: Auction; winner?: User })[]> {
       try {
@@ -1095,6 +1143,28 @@ export class DatabaseStorage implements IStorage {
         .where(eq(notifications.userId, userId));
     } catch (error) {
       console.error("Error marking all notifications as read:", error);
+      throw error;
+    }
+  }
+
+  // Admin Notification function
+  async createAdminNotification(type: string, title: string, message: string, data: any): Promise<void> {
+    try {
+      // Fetch all admin users (you might need to adjust this based on your admin user identification logic)
+      const adminUsers = await db.select().from(users).where(eq(users.role, "admin"));
+
+      // Create a notification for each admin user
+      for (const admin of adminUsers) {
+        await this.createNotification({
+          userId: admin.id,
+          type: type,
+          title: title,
+          message: message,
+          data: JSON.stringify(data),
+        });
+      }
+    } catch (error) {
+      console.error("Error creating admin notification:", error);
       throw error;
     }
   }
