@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, MapPin, Heart, Share2, CreditCard } from "lucide-react";
+import { ArrowLeft, MapPin, Heart, Share2, CreditCard, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AuctionDetail() {
@@ -250,7 +250,7 @@ export default function AuctionDetail() {
               <PaymentStatus auctionId={auction.id} />
             )}
 
-            {isAuctionActive && user && (
+            {isAuctionActive && user && user.role !== "admin" && (
               <BidForm
                 auctionId={auction.id}
                 minimumBid={minimumNextBid}
@@ -260,6 +260,23 @@ export default function AuctionDetail() {
                   queryClient.invalidateQueries({ queryKey: ["/api/auctions", id] });
                 }}
               />
+            )}
+
+            {isAuctionActive && user && user.role === "admin" && (
+              <Card className="bg-blue-50 border-blue-200">
+                <CardContent className="p-6 text-center">
+                  <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-4">
+                    <Eye className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <h3 className="text-lg font-medium text-blue-900 mb-2">Mode Admin</h3>
+                  <p className="text-blue-700">
+                    Anda sedang melihat sebagai admin. Admin tidak dapat melakukan penawaran.
+                  </p>
+                  <Badge variant="secondary" className="mt-3 bg-blue-100 text-blue-800">
+                    Hanya dapat melihat live bidding
+                  </Badge>
+                </CardContent>
+              </Card>
             )}
 
             {!user && (

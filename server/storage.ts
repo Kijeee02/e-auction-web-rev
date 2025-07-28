@@ -5,17 +5,20 @@ import {
   categories,
   watchlist,
   payments,
+  notifications,
   type User,
   type Auction,
   type Bid,
   type Category,
   type Payment,
+  type Notification,
   type AuctionWithDetails,
   type UserStats,
   type InsertAuction,
   type InsertBid,
   type InsertCategory,
   type InsertPayment,
+  type InsertNotification,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, or, like, gte, count, sql } from "drizzle-orm";
@@ -99,6 +102,13 @@ export interface IStorage {
     completedAuctions: number;
     totalRevenue: number;
   }>;
+
+  // Notifications
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  getUserNotifications(userId: number): Promise<Notification[]>;
+  getAdminNotifications(): Promise<Notification[]>;
+  markNotificationAsRead(notificationId: number, userId: number): Promise<void>;
+  markAllNotificationsAsRead(userId: number): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -378,6 +388,46 @@ export class DatabaseStorage implements IStorage {
       .where(eq(auctions.id, id))
       .returning();
 
+    // Create notifications
+    if (auction) {
+      if (winnerId) {
+        // Notify winner
+        await this.createNotification({
+          userId: winnerId,
+          type: "auction",
+          title: "Selamat! Anda Menang",
+          message: `Anda memenangkan lelang ${auction.title}. Silakan lakukan pembayaran.`,
+          data: JSON.stringify({
+            auctionId: id,
+            auctionTitle: auction.title,
+            winningBid: highestBid?.amount,
+          }),
+        });
+
+        // Notify other bidders that they lost
+        const allBids = await this.getBidsForAuction(id);
+        const otherBidders = allBids
+          .filter(bid => bid.bidderId !== winnerId)
+          .map(bid => bid.bidderId);
+        
+        const uniqueBidders = [...new Set(otherBidders)];
+        
+        for (const bidderId of uniqueBidders) {
+          await this.createNotification({
+            userId: bidderId,
+            type: "auction",
+            title: "Lelang Berakhir",
+            message: `Lelang ${auction.title} telah berakhir. Sayangnya Anda tidak memenangkan lelang ini.`,
+            data: JSON.stringify({
+              auctionId: id,
+              auctionTitle: auction.title,
+              winningBid: highestBid?.amount,
+            }),
+          });
+        }
+      }
+    }
+
     return auction || undefined;
   }
 
@@ -526,8 +576,37 @@ export class DatabaseStorage implements IStorage {
       .update(auctions)
       .set({ currentPrice: bid.amount })
       .where(eq(auctions.id, bid.auctionId))
-      // di SQLite returning() tidak selalu didukung, jadi kita abaikan hasilnya
       .execute();
+
+    // 3) Get auction details for notification
+    const auction = await this.getAuction(bid.auctionId);
+    if (auction) {
+      // 4) Create notification for previous highest bidder (if any)
+      const previousHighestBids = await db
+        .select()
+        .from(bids)
+        .where(and(
+          eq(bids.auctionId, bid.auctionId),
+          sql`id != ${created.id}`
+        ))
+        .orderBy(desc(bids.amount))
+        .limit(1);
+
+      if (previousHighestBids.length > 0) {
+        const previousBidder = previousHighestBids[0];
+        await this.createNotification({
+          userId: previousBidder.bidderId,
+          type: "bid",
+          title: "Penawaran Terlampaui",
+          message: `Penawaran Anda untuk ${auction.title} telah dilampaui oleh pengguna lain`,
+          data: JSON.stringify({
+            auctionId: bid.auctionId,
+            auctionTitle: auction.title,
+            newBidAmount: bid.amount,
+          }),
+        });
+      }
+    }
 
     return created;
   }
@@ -701,6 +780,29 @@ export class DatabaseStorage implements IStorage {
 
         if (!payment) {
           throw new Error(`Payment with id ${paymentId} not found`);
+        }
+
+        // Create notification for user
+        if (payment.winnerId) {
+          const auction = await this.getAuction(payment.auctionId);
+          const statusText = status === "verified" ? "disetujui" : "ditolak";
+          const message = status === "verified" 
+            ? `Pembayaran Anda untuk ${auction?.title} telah disetujui. Dokumen telah tersedia.`
+            : `Pembayaran Anda untuk ${auction?.title} ditolak. ${notes || "Silakan hubungi admin untuk informasi lebih lanjut."}`;
+
+          await this.createNotification({
+            userId: payment.winnerId,
+            type: "payment",
+            title: `Pembayaran ${statusText === "disetujui" ? "Disetujui" : "Ditolak"}`,
+            message,
+            data: JSON.stringify({
+              paymentId,
+              auctionId: payment.auctionId,
+              auctionTitle: auction?.title,
+              status,
+              documents: documents || null,
+            }),
+          });
         }
 
         console.log(`[verifyPayment] Payment ${paymentId} updated successfully:`, payment);
@@ -903,6 +1005,83 @@ export class DatabaseStorage implements IStorage {
       }));
     } catch (error) {
       console.error("Error exporting auction data:", error);
+      throw error;
+    }
+  }
+
+  // Notification functions
+  async createNotification(notification: InsertNotification): Promise<Notification> {
+    try {
+      const [newNotification] = await db
+        .insert(notifications)
+        .values({
+          ...notification,
+          createdAt: new Date().toISOString(),
+        })
+        .returning();
+      return newNotification;
+    } catch (error) {
+      console.error("Error creating notification:", error);
+      throw error;
+    }
+  }
+
+  async getUserNotifications(userId: number): Promise<Notification[]> {
+    try {
+      return await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.userId, userId))
+        .orderBy(desc(notifications.createdAt))
+        .limit(50);
+    } catch (error) {
+      console.error("Error fetching user notifications:", error);
+      throw error;
+    }
+  }
+
+  async getAdminNotifications(): Promise<Notification[]> {
+    try {
+      // Get system-wide notifications for admin
+      return await db
+        .select()
+        .from(notifications)
+        .where(or(
+          eq(notifications.type, "system"),
+          eq(notifications.type, "payment"),
+          eq(notifications.type, "auction")
+        ))
+        .orderBy(desc(notifications.createdAt))
+        .limit(50);
+    } catch (error) {
+      console.error("Error fetching admin notifications:", error);
+      throw error;
+    }
+  }
+
+  async markNotificationAsRead(notificationId: number, userId: number): Promise<void> {
+    try {
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(and(
+          eq(notifications.id, notificationId),
+          eq(notifications.userId, userId)
+        ));
+    } catch (error) {
+      console.error("Error marking notification as read:", error);
+      throw error;
+    }
+  }
+
+  async markAllNotificationsAsRead(userId: number): Promise<void> {
+    try {
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.userId, userId));
+    } catch (error) {
+      console.error("Error marking all notifications as read:", error);
       throw error;
     }
   }

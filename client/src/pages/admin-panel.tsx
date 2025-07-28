@@ -476,89 +476,65 @@ export default function AdminPanel() {
           </p>
         </div>
 
-        {/* Real-time System Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Users className="h-8 w-8 text-blue-600" />
+        {/* System Overview */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Activity className="h-5 w-5 mr-2" />
+              System Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="text-center">
+                <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mx-auto mb-2">
+                  <Users className="h-6 w-6 text-blue-600" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Total Pengguna
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {statsLoading ? "..." : realStats?.totalUsers || 0}
-                  </p>
-                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {statsLoading ? "..." : realStats?.totalUsers || 0}
+                </p>
+                <p className="text-sm text-gray-600">Total Users</p>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <Gavel className="h-8 w-8 text-green-600" />
+              <div className="text-center">
+                <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mx-auto mb-2">
+                  <Gavel className="h-6 w-6 text-green-600" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Lelang Aktif
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {statsLoading ? "..." : realStats?.activeAuctions || 0}
-                  </p>
-                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {statsLoading ? "..." : realStats?.activeAuctions || 0}
+                </p>
+                <p className="text-sm text-gray-600">Active Auctions</p>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <CheckCircle className="h-8 w-8 text-green-600" />
+              <div className="text-center">
+                <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-lg mx-auto mb-2">
+                  <CheckCircle className="h-6 w-6 text-purple-600" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Lelang Selesai
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {statsLoading ? "..." : realStats?.completedAuctions || 0}
-                  </p>
-                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {statsLoading ? "..." : realStats?.completedAuctions || 0}
+                </p>
+                <p className="text-sm text-gray-600">Completed</p>
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <DollarSign className="h-8 w-8 text-orange-600" />
+              <div className="text-center">
+                <div className="flex items-center justify-center w-12 h-12 bg-orange-100 rounded-lg mx-auto mb-2">
+                  <TrendingUp className="h-6 w-6 text-orange-600" />
                 </div>
-                <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">
-                    Total Revenue
-                  </p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {statsLoading ? "..." : `Rp ${(realStats?.totalRevenue || 0).toLocaleString('id-ID')}`}
-                  </p>
-                </div>
+                <p className="text-2xl font-bold text-gray-900">
+                  {statsLoading ? "..." : `Rp ${(realStats?.totalRevenue || 0).toLocaleString('id-ID')}`}
+                </p>
+                <p className="text-sm text-gray-600">Total Revenue</p>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Management Tabs */}
         <Tabs defaultValue="auctions" className="w-full">
           <Card>
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-4">
+              <TabsList className="grid w-full grid-cols-5">
                 <TabsTrigger value="auctions">Kelola Lelang</TabsTrigger>
                 <TabsTrigger value="categories">Kategori</TabsTrigger>
                 <TabsTrigger value="payments">Pembayaran</TabsTrigger>
+                <TabsTrigger value="notifications">Notifikasi</TabsTrigger>
                 <TabsTrigger value="archived">Arsip Lelang</TabsTrigger>
               </TabsList>
             </CardHeader>
@@ -1121,6 +1097,96 @@ export default function AdminPanel() {
                       </Table>
                     </div>
                   )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="notifications" className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Notifikasi Admin
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Kelola notifikasi sistem dan pembayaran
+                    </p>
+                  </div>
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      // Mark all notifications as read
+                      queryClient.invalidateQueries({ queryKey: ["/api/admin/notifications"] });
+                    }}
+                  >
+                    Tandai Semua Dibaca
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <Card className="border-l-4 border-l-blue-500">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            <DollarSign className="h-5 w-5 text-blue-500 mt-1" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">Pembayaran Baru</h4>
+                            <p className="text-sm text-gray-600">
+                              Pembayaran baru untuk lelang Honda Beat telah diterima
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">5 menit yang lalu</p>
+                          </div>
+                        </div>
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                          Baru
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-l-4 border-l-green-500">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            <Gavel className="h-5 w-5 text-green-500 mt-1" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">Lelang Berakhir</h4>
+                            <p className="text-sm text-gray-600">
+                              Lelang Toyota Avanza telah berakhir dengan pemenang
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">1 jam yang lalu</p>
+                          </div>
+                        </div>
+                        <Badge variant="outline">
+                          Dibaca
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-l-4 border-l-orange-500">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            <Users className="h-5 w-5 text-orange-500 mt-1" />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-gray-900">User Baru</h4>
+                            <p className="text-sm text-gray-600">
+                              3 pengguna baru telah mendaftar hari ini
+                            </p>
+                            <p className="text-xs text-gray-500 mt-1">2 jam yang lalu</p>
+                          </div>
+                        </div>
+                        <Badge variant="outline">
+                          Dibaca
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               </TabsContent>
 

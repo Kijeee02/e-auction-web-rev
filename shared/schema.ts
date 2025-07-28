@@ -2,6 +2,7 @@ import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -243,6 +244,25 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
   accountNumber: z.string().optional(),
   accountName: z.string().optional(),
 });
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
+
+// Notifications table
+export const notifications = sqliteTable("notifications", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").references(() => users.id),
+  type: text("type").notNull(), // 'payment', 'auction', 'bid', 'system'
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  isRead: integer("is_read", { mode: "boolean" }).default(false),
+  data: text("data", { mode: "json" }), // Additional data as JSON
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
+
+export const insertNotificationSchema = createInsertSchema(notifications);
+export type InsertNotificationSchema = z.infer<typeof insertNotificationSchema>;
 
 // Types
 export type User = typeof users.$inferSelect;
