@@ -919,7 +919,6 @@ export default function AdminPanel() {
                                         action: "reject",
                                       });
                                       setVerificationNotes("");
-                                    ```python
                                     }}
                                     disabled={verifyPaymentMutation.isPending}
                                   >
@@ -1128,7 +1127,7 @@ export default function AdminPanel() {
                   </Button>
                 </div>
 
-                
+
                 <div className="space-y-4">
                   {adminNotifications.length === 0 ? (
                     <div className="text-center py-8">
@@ -1885,7 +1884,6 @@ export default function AdminPanel() {
                   )}
                 </p>
                 <p className="text-sm text-gray-600 mt-1">Winner</p>
-                ```python
                 <p className="font-medium">
                   {verifyPaymentModal.payment.winner?.firstName}{" "}
                   {verifyPaymentModal.payment.winner?.lastName}
