@@ -237,9 +237,11 @@ export default function Navbar() {
                         </Link>
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem>
-                      <Settings className="h-4 w-4 mr-2" />
-                      Pengaturan
+                    <DropdownMenuItem asChild>
+                      <Link href="/account-settings" className="flex items-center cursor-pointer">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Pengaturan Akun
+                      </Link>
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem

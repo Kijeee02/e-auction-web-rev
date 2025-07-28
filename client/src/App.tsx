@@ -14,6 +14,7 @@ import UserDashboard from "@/pages/user-dashboard";
 import AdminPanel from "@/pages/admin-panel";
 import NotFound from "@/pages/not-found";
 import EditAuctionPage from "@/pages/EditAuctionPage";
+import AccountSettings from "./pages/account-settings";
 
 
 function Router() {
@@ -28,6 +29,7 @@ function Router() {
       <ProtectedRoute path="/dashboard" component={UserDashboard} />
       <AdminRoute path="/admin" component={AdminPanel} />
       <AdminRoute path="/admin/users" component={AdminUsersPage} />
+      <Route path="/account-settings" component={AccountSettings} />
       <Route component={NotFound} />
     </Switch>
   );

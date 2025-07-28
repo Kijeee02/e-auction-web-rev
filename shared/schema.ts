@@ -12,6 +12,7 @@ export const users = sqliteTable("users", {
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   phone: text("phone"),
+  avatar: text("avatar"),
   role: text("role").notNull().default("user"), // "user" or "admin"
   isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
   rating: real("rating").default(0.00),
