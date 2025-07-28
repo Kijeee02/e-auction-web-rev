@@ -72,7 +72,7 @@ export interface IStorage {
 
   // Payments
   getPaymentsForUser(userId: number): Promise<Payment[]>;
-  getUserPayments(userId: number): Promise<Payment[]>;
+  getUserPayments(userId: number): Promise<(Payment & { auction?: Auction })[]>;
   createPayment(payment: InsertPayment): Promise<Payment>;
   updatePayment(id: number, updates: Partial<Payment>): Promise<Payment | undefined>;
   getPayment(id: number): Promise<Payment | undefined>;
@@ -144,12 +144,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
-    const [user] = await db
-      .update(users)
-      .set(updates)
-      .where(eq(users.id, id))
-      .returning();
-    return user || undefined;
+    // Remove undefined fields to avoid SQL errors
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
+
+    if (Object.keys(cleanUpdates).length > 0) {
+      const [user] = await db
+        .update(users)
+        .set(cleanUpdates)
+        .where(eq(users.id, id))
+        .returning();
+      return user || undefined;
+    }
+    return this.getUser(id);
   }
 
   async getUserStats(userId: number): Promise<UserStats> {

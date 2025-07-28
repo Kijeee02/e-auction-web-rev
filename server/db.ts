@@ -23,11 +23,25 @@ export function initializeDatabase() {
         first_name TEXT NOT NULL,
         last_name TEXT NOT NULL,
         phone TEXT,
+        avatar TEXT,
         role TEXT NOT NULL DEFAULT 'user',
         is_active INTEGER NOT NULL DEFAULT 1,
         rating REAL DEFAULT 0.00,
         created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
+
+      -- Add avatar column if it doesn't exist (for existing databases)
+      PRAGMA table_info(users);
+    `);
+
+    // Check if avatar column exists, if not add it
+    const columns = sqlite.prepare("PRAGMA table_info(users)").all() as { name: string }[];
+    const hasAvatarColumn = columns.some(col => col.name === 'avatar');
+    
+    if (!hasAvatarColumn) {
+      sqlite.exec(`ALTER TABLE users ADD COLUMN avatar TEXT;`);
+      console.log('✓ Added avatar column to users table');
+    }
 
       CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

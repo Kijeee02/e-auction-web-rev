@@ -26,7 +26,7 @@ export default function Navbar() {
 
   // Get notifications based on user role
   const notificationEndpoint = user?.role === "admin" ? "/api/admin/notifications" : "/api/notifications";
-  
+
   const { data: notifications = [], isLoading: notificationsLoading } = useQuery<Notification[]>({
     queryKey: [notificationEndpoint],
     enabled: !!user,
@@ -146,7 +146,7 @@ export default function Navbar() {
                         {unreadCount} notifikasi belum dibaca
                       </p>
                     </div>
-                    
+
                     {notificationsLoading ? (
                       <div className="p-4 text-center text-sm text-gray-500">
                         Memuat notifikasi...
@@ -196,7 +196,7 @@ export default function Navbar() {
                         ))}
                       </div>
                     )}
-                    
+
                     {notifications.length > 10 && (
                       <div className="p-3 border-t text-center">
                         <Button variant="ghost" size="sm" className="text-xs">
@@ -211,9 +211,13 @@ export default function Navbar() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center space-x-2 text-gray-700 hover:text-primary">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="bg-primary text-white text-sm">
-                          {getInitials(user.firstName, user.lastName)}
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage 
+                          src={user.avatar || undefined} 
+                          alt={`${user.firstName} ${user.lastName}`} 
+                        />
+                        <AvatarFallback className="bg-primary text-white">
+                          {user.firstName?.[0]?.toUpperCase()}{user.lastName?.[0]?.toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <span className="hidden sm:block text-sm font-medium">

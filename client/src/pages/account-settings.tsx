@@ -539,7 +539,7 @@ export default function AccountSettings() {
                 <div className="flex items-center space-x-6">
                   <Avatar className="w-24 h-24">
                     <AvatarImage
-                      src={avatarPreview || user.avatar}
+                      src={avatarPreview || user.avatar || undefined}
                       alt={`${user.firstName} ${user.lastName}`}
                     />
                     <AvatarFallback className="bg-primary text-white text-xl">

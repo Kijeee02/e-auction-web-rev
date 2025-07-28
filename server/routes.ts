@@ -536,9 +536,9 @@ export function registerRoutes(app: Express): Server {
         return res.status(401).json({ message: "Authentication required" });
       }
 
-      // For now, simulate avatar upload
-      // In production, you would handle file upload with multer or similar
-      const avatarUrl = `/avatars/${req.user.id}_${Date.now()}.jpg`;
+      // Simulate avatar upload with a placeholder URL
+      // In a real implementation, you would use multer to handle file uploads
+      const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(req.user.firstName + ' ' + req.user.lastName)}&size=200&background=3b82f6&color=ffffff`;
       
       await storage.updateUser(req.user.id, { avatar: avatarUrl });
 
