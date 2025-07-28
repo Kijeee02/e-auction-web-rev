@@ -65,6 +65,9 @@ export default function UserDashboard() {
   const { data: userPayments = [] } = useQuery<(Payment & { auction: any })[]>({
     queryKey: ["/api/user/payments"],
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Update profile mutation

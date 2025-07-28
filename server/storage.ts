@@ -75,7 +75,8 @@ export interface IStorage {
   getPayment(id: number): Promise<Payment | undefined>;
   getPaymentByAuctionId(auctionId: number): Promise<Payment | undefined>;
   getAllPendingPayments(): Promise<(Payment & { auction?: Auction; winner?: User })[]>;
-  verifyPayment(paymentId: number, adminId: number, status: string, notes?: string): Promise<Payment>;
+  verifyPayment(paymentId: number, adminId: number, status: string, notes?: string, documents?: any): Promise<Payment>;
+  getPaymentHistory(search?: string, statusFilter?: string): Promise<(Payment & { auction?: Auction; winner?: User })[]>;
 
   // Session store
   sessionStore: any;
@@ -699,6 +700,54 @@ export class DatabaseStorage implements IStorage {
       } catch (error) {
         console.error(`[verifyPayment] Error updating payment ${paymentId}:`, error);
         throw error;
+      }
+    }
+
+    async getPaymentHistory(search?: string, statusFilter?: string): Promise<(Payment & { auction?: Auction; winner?: User })[]> {
+      try {
+        let query = db
+          .select({
+            payment: payments,
+            auction: auctions,
+            winner: users,
+          })
+          .from(payments)
+          .leftJoin(auctions, eq(payments.auctionId, auctions.id))
+          .leftJoin(users, eq(payments.winnerId, users.id));
+
+        const whereClauses = [];
+
+        // Only show processed payments (verified or rejected)
+        whereClauses.push(or(eq(payments.status, "verified"), eq(payments.status, "rejected")));
+
+        if (statusFilter && statusFilter !== "all") {
+          whereClauses.push(eq(payments.status, statusFilter));
+        }
+
+        if (search) {
+          whereClauses.push(
+            or(
+              sql`auctions.title LIKE '%' || ${search} || '%'`,
+              sql`users.firstName || ' ' || users.lastName LIKE '%' || ${search} || '%'`,
+              sql`users.email LIKE '%' || ${search} || '%'`
+            )
+          );
+        }
+
+        const results = await (
+          whereClauses.length > 0
+            ? query.where(and(...whereClauses)).orderBy(desc(payments.verifiedAt))
+            : query.orderBy(desc(payments.verifiedAt))
+        );
+
+        return results.map((result) => ({
+          ...result.payment,
+          auction: result.auction,
+          winner: result.winner,
+        }));
+      } catch (error) {
+        console.error("Error fetching payment history:", error);
+        return [];
       }
     }
 

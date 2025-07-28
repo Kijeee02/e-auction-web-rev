@@ -83,6 +83,23 @@ export default function AdminPanel() {
     releaseLetter: "",
     handover: ""
   });
+  const [paymentHistorySearch, setPaymentHistorySearch] = useState("");
+  const [paymentHistoryStatus, setPaymentHistoryStatus] = useState("all");
+
+  const { data: paymentHistory = [], isLoading: loadingPaymentHistory } = useQuery<
+    (Payment & { auction: any; winner: any })[]
+  >({
+    queryKey: ["/api/admin/payments/history", paymentHistorySearch, paymentHistoryStatus],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (paymentHistorySearch) params.append("search", paymentHistorySearch);
+      if (paymentHistoryStatus !== "all") params.append("status", paymentHistoryStatus);
+      
+      const res = await fetch(`/api/admin/payments/history?${params.toString()}`);
+      if (!res.ok) throw new Error("Failed to fetch payment history");
+      return res.json();
+    },
+  });
 
   const {
     data: auctions,
@@ -439,15 +456,17 @@ export default function AdminPanel() {
       paymentId,
       status,
       notes,
+      documents,
     }: {
       paymentId: string;
       status: string;
       notes?: string;
+      documents?: any;
     }) => {
       const res = await apiRequest(
         "POST",
         `/api/admin/payments/${paymentId}/verify`,
-        { status, notes },
+        { status, notes, documents },
       );
       if (!res.ok) throw new Error("Failed to verify payment");
       return res.json();
@@ -455,6 +474,12 @@ export default function AdminPanel() {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["/api/admin/payments/pending"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/admin/payments/history"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/user/payments"],
       });
       toast({ title: "Success", description: "Payment verified successfully" });
     },
@@ -559,10 +584,11 @@ export default function AdminPanel() {
         <Tabs defaultValue="auctions" className="w-full">
           <Card>
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-7">
+              <TabsList className="grid w-full grid-cols-8">
                 <TabsTrigger value="auctions">Kelola Lelang</TabsTrigger>
                 <TabsTrigger value="categories">Kategori</TabsTrigger>
-                <TabsTrigger value="payments">Pembayaran</TabsTrigger>
+                <TabsTrigger value="payments">Pembayaran Pending</TabsTrigger>
+                <TabsTrigger value="payment-history">Riwayat Pembayaran</TabsTrigger>
                 <TabsTrigger value="archived">Arsip</TabsTrigger>
                 <TabsTrigger value="users">Pengguna</TabsTrigger>
                 <TabsTrigger value="reports">Laporan</TabsTrigger>
@@ -813,7 +839,7 @@ export default function AdminPanel() {
 
               <TabsContent value="payments" className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold">Pending Payments</h3>
+                  <h3 className="text-lg font-semibold">Pembayaran Pending</h3>
                   <Badge variant="secondary">
                     {pendingPayments.length} pending
                   </Badge>
@@ -924,6 +950,176 @@ export default function AdminPanel() {
                                 ✗ Reject
                               </Button>
                             </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
+
+              <TabsContent value="payment-history" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h3 className="text-lg font-semibold">Riwayat Pembayaran</h3>
+                    <p className="text-sm text-gray-600">
+                      Semua pembayaran yang telah diproses (disetujui/ditolak)
+                    </p>
+                  </div>
+                  <div className="flex space-x-3">
+                    <Select
+                      value={paymentHistoryStatus}
+                      onValueChange={setPaymentHistoryStatus}
+                    >
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Semua Status</SelectItem>
+                        <SelectItem value="verified">Disetujui</SelectItem>
+                        <SelectItem value="rejected">Ditolak</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      placeholder="Cari pembayaran..."
+                      value={paymentHistorySearch}
+                      onChange={(e) => setPaymentHistorySearch(e.target.value)}
+                      className="w-64"
+                    />
+                  </div>
+                </div>
+
+                {loadingPaymentHistory ? (
+                  <div className="text-center py-8">
+                    <div className="animate-pulse space-y-4">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="h-16 bg-gray-200 rounded"></div>
+                      ))}
+                    </div>
+                  </div>
+                ) : paymentHistory.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CreditCard className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      Belum ada riwayat pembayaran
+                    </h3>
+                    <p className="text-gray-600">
+                      Riwayat pembayaran yang telah diproses akan muncul di sini.
+                    </p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Lelang</TableHead>
+                        <TableHead>Pemenang</TableHead>
+                        <TableHead>Jumlah</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Diproses</TableHead>
+                        <TableHead>Dokumen</TableHead>
+                        <TableHead>Catatan</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {paymentHistory.map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <img
+                                src={payment.auction?.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"}
+                                alt={payment.auction?.title}
+                                className="w-12 h-12 object-cover rounded-lg mr-3"
+                              />
+                              <div>
+                                <p className="font-medium text-gray-900">{payment.auction?.title}</p>
+                                <p className="text-sm text-gray-600">ID: AUC-{payment.auctionId}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">
+                                {payment.winner?.firstName} {payment.winner?.lastName}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                {payment.winner?.email}
+                              </p>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-bold">
+                              Rp {Number(payment.amount).toLocaleString("id-ID")}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              payment.status === "verified" ? "default" : "destructive"
+                            }>
+                              {payment.status === "verified" ? "Disetujui" : "Ditolak"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm">
+                              {payment.verifiedAt ? new Date(payment.verifiedAt).toLocaleDateString("id-ID") : "-"}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              {payment.status === "verified" && (
+                                <>
+                                  {payment.invoiceDocument && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => window.open(payment.invoiceDocument, '_blank')}
+                                      className="text-xs h-6"
+                                    >
+                                      <FileText className="h-3 w-3 mr-1" />
+                                      Invoice
+                                    </Button>
+                                  )}
+                                  {payment.releaseLetterDocument && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => window.open(payment.releaseLetterDocument, '_blank')}
+                                      className="text-xs h-6"
+                                    >
+                                      <FileText className="h-3 w-3 mr-1" />
+                                      Surat Lepas
+                                    </Button>
+                                  )}
+                                  {payment.handoverDocument && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => window.open(payment.handoverDocument, '_blank')}
+                                      className="text-xs h-6"
+                                    >
+                                      <FileText className="h-3 w-3 mr-1" />
+                                      Serah Terima
+                                    </Button>
+                                  )}
+                                  {!payment.invoiceDocument && !payment.releaseLetterDocument && !payment.handoverDocument && (
+                                    <span className="text-xs text-gray-500">Tidak ada dokumen</span>
+                                  )}
+                                </>
+                              )}
+                              {payment.status === "rejected" && (
+                                <span className="text-xs text-red-600">Pembayaran ditolak</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {payment.notes ? (
+                              <div className="max-w-xs">
+                                <p className="text-sm text-gray-600 truncate" title={payment.notes}>
+                                  {payment.notes}
+                                </p>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-gray-400">Tidak ada catatan</span>
+                            )}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1805,19 +2001,26 @@ export default function AdminPanel() {
                       return;
                     }
 
-                    verifyPaymentMutation.mutate({
+                    const payload: any = {
                       paymentId: verifyPaymentModal.payment.id,
                       status:
                         verifyPaymentModal.action === "verify"
                           ? "verified"
                           : "rejected",
                       notes: verificationNotes.trim() || undefined,
-                      documents: verifyPaymentModal.action === "verify" ? {
+                    };
+
+                    if (verifyPaymentModal.action === "verify") {
+                      payload.documents = {
                         invoiceDocument: documentUploads.invoice || undefined,
                         releaseLetterDocument: documentUploads.releaseLetter || undefined,
                         handoverDocument: documentUploads.handover || undefined,
-                      } : undefined,
-                    });
+                      };
+                    }
+
+                    console.log("Sending verification payload:", payload);
+
+                    verifyPaymentMutation.mutate(payload);
                     setVerifyPaymentModal(null);
                     setVerificationNotes("");
                     setDocumentUploads({

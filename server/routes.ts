@@ -635,6 +635,20 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  app.get("/api/admin/payments/history", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const { search, status } = req.query;
+      const paymentHistory = await storage.getPaymentHistory(search as string, status as string);
+      res.json(paymentHistory);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch payment history" });
+    }
+  });
+
   // Admin routes
   app.get("/api/admin/stats", async (req, res) => {
     try {
