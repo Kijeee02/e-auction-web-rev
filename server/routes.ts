@@ -454,7 +454,7 @@ export function registerRoutes(app: Express): Server {
 
   app.put("/api/user/profile", async (req, res) => {
     try {
-      if (!req.isAuthenticated()) {
+      if (!req.isAuthenticated() || !req.user) {
         return res.status(401).json({ message: "Authentication required" });
       }
 
@@ -487,7 +487,7 @@ export function registerRoutes(app: Express): Server {
   // Change password route
   app.post("/api/user/change-password", async (req, res) => {
     try {
-      if (!req.isAuthenticated()) {
+      if (!req.isAuthenticated() || !req.user) {
         return res.status(401).json({ message: "Authentication required" });
       }
 
@@ -532,7 +532,7 @@ export function registerRoutes(app: Express): Server {
   // Upload avatar route
   app.post("/api/user/avatar", async (req, res) => {
     try {
-      if (!req.isAuthenticated()) {
+      if (!req.isAuthenticated() || !req.user) {
         return res.status(401).json({ message: "Authentication required" });
       }
 

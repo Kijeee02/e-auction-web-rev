@@ -23,7 +23,7 @@ export function initializeDatabase() {
         first_name TEXT NOT NULL,
         last_name TEXT NOT NULL,
         phone TEXT,
-        avatar TEXT,
+        avatar TEXT DEFAULT NULL,
         role TEXT NOT NULL DEFAULT 'user',
         is_active INTEGER NOT NULL DEFAULT 1,
         rating REAL DEFAULT 0.00,
