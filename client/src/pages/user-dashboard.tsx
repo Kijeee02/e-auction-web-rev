@@ -11,8 +11,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Gavel, Trophy, Eye, Star, ArrowRight, CreditCard, Edit } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Gavel,
+  Trophy,
+  Eye,
+  Star,
+  ArrowRight,
+  CreditCard,
+  Edit,
+} from "lucide-react";
 import { FileText } from "lucide-react";
 
 export default function UserDashboard() {
@@ -110,12 +125,16 @@ export default function UserDashboard() {
   };
 
   // Filter active bids (auctions that are still active)
-  const activeBids = userBids.filter(bid => 
-    bid.auction.status === "active" && new Date() < new Date(bid.auction.endTime)
+  const activeBids = userBids.filter(
+    (bid) =>
+      bid.auction.status === "active" &&
+      new Date() < new Date(bid.auction.endTime),
   );
 
-  const bidHistory = userBids.filter(bid => 
-    bid.auction.status === "ended" || new Date() >= new Date(bid.auction.endTime)
+  const bidHistory = userBids.filter(
+    (bid) =>
+      bid.auction.status === "ended" ||
+      new Date() >= new Date(bid.auction.endTime),
   );
 
   // Get bid status for active auctions
@@ -124,9 +143,17 @@ export default function UserDashboard() {
     const bidAmount = parseFloat(bid.amount);
 
     if (currentPrice === bidAmount) {
-      return { status: "winning", label: "Winning", variant: "default" as const };
+      return {
+        status: "winning",
+        label: "Winning",
+        variant: "default" as const,
+      };
     } else {
-      return { status: "outbid", label: "Outbid", variant: "secondary" as const };
+      return {
+        status: "outbid",
+        label: "Outbid",
+        variant: "secondary" as const,
+      };
     }
   };
 
@@ -151,7 +178,9 @@ export default function UserDashboard() {
                   <Gavel className="h-8 w-8 text-primary" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Lelang Aktif</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Lelang Aktif
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">
                     {stats?.activeBids || 0}
                   </p>
@@ -167,7 +196,9 @@ export default function UserDashboard() {
                   <Trophy className="h-8 w-8 text-accent" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Lelang Dimenangkan</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Lelang Dimenangkan
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">
                     {stats?.wonAuctions || 0}
                   </p>
@@ -183,7 +214,9 @@ export default function UserDashboard() {
                   <Eye className="h-8 w-8 text-blue-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Sedang Diikuti</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Sedang Diikuti
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">
                     {stats?.watchlistCount || 0}
                   </p>
@@ -199,7 +232,9 @@ export default function UserDashboard() {
                   <Star className="h-8 w-8 text-green-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Rating Saya</p>
+                  <p className="text-sm font-medium text-gray-600">
+                    Rating Saya
+                  </p>
                   <p className="text-2xl font-bold text-gray-900">
                     {stats?.rating || "0.0"}
                   </p>
@@ -213,7 +248,7 @@ export default function UserDashboard() {
         <Tabs defaultValue="active-bids" className="w-full">
           <Card>
             <CardHeader>
-              <TabsList className="grid w-full grid-cols-5">
+              <TabsList className="grid w-full grid-cols-6">
                 <TabsTrigger value="active-bids">Penawaran Aktif</TabsTrigger>
                 <TabsTrigger value="won">Lelang Dimenangkan</TabsTrigger>
                 <TabsTrigger value="payments">Pembayaran</TabsTrigger>
@@ -232,7 +267,8 @@ export default function UserDashboard() {
                       Tidak ada penawaran aktif
                     </h3>
                     <p className="text-gray-600 mb-4">
-                      Mulai ikut lelang untuk melihat penawaran aktif Anda di sini.
+                      Mulai ikut lelang untuk melihat penawaran aktif Anda di
+                      sini.
                     </p>
                     <Button>Jelajahi Lelang</Button>
                   </div>
@@ -256,34 +292,50 @@ export default function UserDashboard() {
                             <TableCell>
                               <div className="flex items-center">
                                 <img
-                                  src={bid.auction.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"}
+                                  src={
+                                    bid.auction.imageUrl ||
+                                    "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"
+                                  }
                                   alt={bid.auction.title}
                                   className="w-12 h-12 object-cover rounded-lg mr-3"
                                 />
                                 <div>
-                                  <p className="font-medium text-gray-900">{bid.auction.title}</p>
-                                  <p className="text-sm text-gray-600">{bid.auction.condition}</p>
+                                  <p className="font-medium text-gray-900">
+                                    {bid.auction.title}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    {bid.auction.condition}
+                                  </p>
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell>
                               <span className="font-bold text-primary">
-                                Rp {parseFloat(bid.amount).toLocaleString('id-ID')}
+                                Rp{" "}
+                                {parseFloat(bid.amount).toLocaleString("id-ID")}
                               </span>
                             </TableCell>
                             <TableCell>
                               <span className="font-bold text-gray-900">
-                                Rp {parseFloat(bid.auction.currentPrice).toLocaleString('id-ID')}
+                                Rp{" "}
+                                {parseFloat(
+                                  bid.auction.currentPrice,
+                                ).toLocaleString("id-ID")}
                               </span>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={status.variant} className={`status-${status.status}`}>
+                              <Badge
+                                variant={status.variant}
+                                className={`status-${status.status}`}
+                              >
                                 {status.label}
                               </Badge>
                             </TableCell>
                             <TableCell>
                               <span className="text-sm text-gray-600">
-                                {new Date(bid.auction.endTime).toLocaleDateString('id-ID')}
+                                {new Date(
+                                  bid.auction.endTime,
+                                ).toLocaleDateString("id-ID")}
                               </span>
                             </TableCell>
                             <TableCell>
@@ -325,36 +377,56 @@ export default function UserDashboard() {
                     <TableBody>
                       {wonAuctions.map((auction) => {
                         // Find payment for this auction
-                        const payment = userPayments.find(p => p.auctionId === auction.id);
+                        const payment = userPayments.find(
+                          (p) => p.auctionId === auction.id,
+                        );
 
                         return (
                           <TableRow key={auction.id}>
                             <TableCell>
                               <div className="flex items-center">
                                 <img
-                                  src={auction.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"}
+                                  src={
+                                    auction.imageUrl ||
+                                    "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"
+                                  }
                                   alt={auction.title}
                                   className="w-12 h-12 object-cover rounded-lg mr-3"
                                 />
                                 <div>
-                                  <p className="font-medium text-gray-900">{auction.title}</p>
-                                  <p className="text-sm text-gray-600">{auction.condition}</p>
+                                  <p className="font-medium text-gray-900">
+                                    {auction.title}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    {auction.condition}
+                                  </p>
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell>
                               <span className="font-bold text-primary">
-                                Rp {parseFloat(auction.currentPrice).toLocaleString('id-ID')}
+                                Rp{" "}
+                                {parseFloat(
+                                  auction.currentPrice,
+                                ).toLocaleString("id-ID")}
                               </span>
                             </TableCell>
                             <TableCell>
                               {payment ? (
-                                <Badge variant={
-                                  payment.status === "verified" ? "default" :
-                                  payment.status === "rejected" ? "destructive" : "secondary"
-                                }>
-                                  {payment.status === "verified" ? "Lunas" :
-                                   payment.status === "rejected" ? "Ditolak" : "Pending"}
+                                <Badge
+                                  variant={
+                                    payment.status === "verified"
+                                      ? "default"
+                                      : payment.status === "rejected"
+                                        ? "destructive"
+                                        : "secondary"
+                                  }
+                                >
+                                  {payment.status === "verified"
+                                    ? "Lunas"
+                                    : payment.status === "rejected"
+                                      ? "Ditolak"
+                                      : "Pending"}
                                 </Badge>
                               ) : (
                                 <Badge variant="destructive">Belum Bayar</Badge>
@@ -362,7 +434,9 @@ export default function UserDashboard() {
                             </TableCell>
                             <TableCell>
                               <span className="text-sm text-gray-600">
-                                {new Date(auction.endTime).toLocaleDateString('id-ID')}
+                                {new Date(auction.endTime).toLocaleDateString(
+                                  "id-ID",
+                                )}
                               </span>
                             </TableCell>
                             <TableCell>
@@ -373,7 +447,12 @@ export default function UserDashboard() {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => window.open(payment.invoiceDocument, '_blank')}
+                                        onClick={() =>
+                                          window.open(
+                                            payment.invoiceDocument,
+                                            "_blank",
+                                          )
+                                        }
                                         className="text-xs h-6"
                                       >
                                         <FileText className="h-3 w-3 mr-1" />
@@ -384,7 +463,12 @@ export default function UserDashboard() {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => window.open(payment.releaseLetterDocument, '_blank')}
+                                        onClick={() =>
+                                          window.open(
+                                            payment.releaseLetterDocument,
+                                            "_blank",
+                                          )
+                                        }
                                         className="text-xs h-6"
                                       >
                                         <FileText className="h-3 w-3 mr-1" />
@@ -395,34 +479,51 @@ export default function UserDashboard() {
                                       <Button
                                         size="sm"
                                         variant="outline"
-                                        onClick={() => window.open(payment.handoverDocument, '_blank')}
+                                        onClick={() =>
+                                          window.open(
+                                            payment.handoverDocument,
+                                            "_blank",
+                                          )
+                                        }
                                         className="text-xs h-6"
                                       >
                                         <FileText className="h-3 w-3 mr-1" />
                                         Serah Terima
                                       </Button>
                                     )}
-                                    {!payment.invoiceDocument && !payment.releaseLetterDocument && !payment.handoverDocument && (
-                                      <span className="text-xs text-gray-500">Dokumen belum tersedia</span>
-                                    )}
+                                    {!payment.invoiceDocument &&
+                                      !payment.releaseLetterDocument &&
+                                      !payment.handoverDocument && (
+                                        <span className="text-xs text-gray-500">
+                                          Dokumen belum tersedia
+                                        </span>
+                                      )}
                                   </>
                                 )}
                                 {payment && payment.status === "pending" && (
-                                  <span className="text-xs text-yellow-600">Menunggu verifikasi</span>
+                                  <span className="text-xs text-yellow-600">
+                                    Menunggu verifikasi
+                                  </span>
                                 )}
                                 {payment && payment.status === "rejected" && (
-                                  <span className="text-xs text-red-600">Pembayaran ditolak</span>
+                                  <span className="text-xs text-red-600">
+                                    Pembayaran ditolak
+                                  </span>
                                 )}
                                 {!payment && (
-                                  <span className="text-xs text-red-600">Belum upload bukti bayar</span>
+                                  <span className="text-xs text-red-600">
+                                    Belum upload bukti bayar
+                                  </span>
                                 )}
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
-                                onClick={() => window.location.href = `/auctions/${auction.id}`}
+                                onClick={() =>
+                                  (window.location.href = `/auctions/${auction.id}`)
+                                }
                               >
                                 <ArrowRight className="h-4 w-4" />
                               </Button>
@@ -443,7 +544,8 @@ export default function UserDashboard() {
                       Belum ada riwayat pembayaran
                     </h3>
                     <p className="text-gray-600">
-                      Riwayat pembayaran akan muncul di sini setelah Anda memenangkan lelang.
+                      Riwayat pembayaran akan muncul di sini setelah Anda
+                      memenangkan lelang.
                     </p>
                   </div>
                 ) : (
@@ -464,33 +566,53 @@ export default function UserDashboard() {
                           <TableCell>
                             <div className="flex items-center">
                               <img
-                                src={payment.auction?.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"}
+                                src={
+                                  payment.auction?.imageUrl ||
+                                  "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"
+                                }
                                 alt={payment.auction?.title}
                                 className="w-12 h-12 object-cover rounded-lg mr-3"
                               />
                               <div>
-                                <p className="font-medium text-gray-900">{payment.auction?.title}</p>
+                                <p className="font-medium text-gray-900">
+                                  {payment.auction?.title}
+                                </p>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="font-bold">Rp {Number(payment.amount).toLocaleString('id-ID')}</span>
+                            <span className="font-bold">
+                              Rp{" "}
+                              {Number(payment.amount).toLocaleString("id-ID")}
+                            </span>
                           </TableCell>
                           <TableCell>
-                            <span className="capitalize">{payment.paymentMethod.replace('_', ' ')}</span>
+                            <span className="capitalize">
+                              {payment.paymentMethod.replace("_", " ")}
+                            </span>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={
-                              payment.status === "verified" ? "default" :
-                              payment.status === "rejected" ? "destructive" : "secondary"
-                            }>
-                              {payment.status === "verified" ? "Sukses" :
-                               payment.status === "rejected" ? "Ditolak" : "Pending"}
+                            <Badge
+                              variant={
+                                payment.status === "verified"
+                                  ? "default"
+                                  : payment.status === "rejected"
+                                    ? "destructive"
+                                    : "secondary"
+                              }
+                            >
+                              {payment.status === "verified"
+                                ? "Sukses"
+                                : payment.status === "rejected"
+                                  ? "Ditolak"
+                                  : "Pending"}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <span className="text-sm text-gray-600">
-                              {new Date(payment.createdAt).toLocaleDateString('id-ID')}
+                              {new Date(payment.createdAt).toLocaleDateString(
+                                "id-ID",
+                              )}
                             </span>
                           </TableCell>
                           <TableCell>
@@ -501,7 +623,12 @@ export default function UserDashboard() {
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => window.open(payment.invoiceDocument, '_blank')}
+                                      onClick={() =>
+                                        window.open(
+                                          payment.invoiceDocument,
+                                          "_blank",
+                                        )
+                                      }
                                       className="text-xs"
                                     >
                                       <FileText className="h-3 w-3 mr-1" />
@@ -512,7 +639,12 @@ export default function UserDashboard() {
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => window.open(payment.releaseLetterDocument, '_blank')}
+                                      onClick={() =>
+                                        window.open(
+                                          payment.releaseLetterDocument,
+                                          "_blank",
+                                        )
+                                      }
                                       className="text-xs"
                                     >
                                       <FileText className="h-3 w-3 mr-1" />
@@ -523,26 +655,41 @@ export default function UserDashboard() {
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      onClick={() => window.open(payment.handoverDocument, '_blank')}
+                                      onClick={() =>
+                                        window.open(
+                                          payment.handoverDocument,
+                                          "_blank",
+                                        )
+                                      }
                                       className="text-xs"
                                     >
                                       <FileText className="h-3 w-3 mr-1" />
                                       Serah Terima
                                     </Button>
                                   )}
-                                  {!payment.invoiceDocument && !payment.releaseLetterDocument && !payment.handoverDocument && (
-                                    <span className="text-xs text-gray-500">Belum tersedia</span>
-                                  )}
+                                  {!payment.invoiceDocument &&
+                                    !payment.releaseLetterDocument &&
+                                    !payment.handoverDocument && (
+                                      <span className="text-xs text-gray-500">
+                                        Belum tersedia
+                                      </span>
+                                    )}
                                 </>
                               )}
                               {payment.status === "pending" && (
-                                <span className="text-xs text-yellow-600">Menunggu verifikasi</span>
-                              )}
-                              {payment.status === "rejected" && payment.notes && (
-                                <span className="text-xs text-red-600" title={payment.notes}>
-                                  Lihat catatan
+                                <span className="text-xs text-yellow-600">
+                                  Menunggu verifikasi
                                 </span>
                               )}
+                              {payment.status === "rejected" &&
+                                payment.notes && (
+                                  <span
+                                    className="text-xs text-red-600"
+                                    title={payment.notes}
+                                  >
+                                    Lihat catatan
+                                  </span>
+                                )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -582,34 +729,49 @@ export default function UserDashboard() {
                             <TableCell>
                               <div className="flex items-center">
                                 <img
-                                  src={bid.auction.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"}
+                                  src={
+                                    bid.auction.imageUrl ||
+                                    "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"
+                                  }
                                   alt={bid.auction.title}
                                   className="w-12 h-12 object-cover rounded-lg mr-3"
                                 />
                                 <div>
-                                  <p className="font-medium text-gray-900">{bid.auction.title}</p>
-                                  <p className="text-sm text-gray-600">{bid.auction.condition}</p>
+                                  <p className="font-medium text-gray-900">
+                                    {bid.auction.title}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    {bid.auction.condition}
+                                  </p>
                                 </div>
                               </div>
                             </TableCell>
                             <TableCell>
                               <span className="font-medium">
-                                Rp {parseFloat(bid.amount).toLocaleString('id-ID')}
+                                Rp{" "}
+                                {parseFloat(bid.amount).toLocaleString("id-ID")}
                               </span>
                             </TableCell>
                             <TableCell>
                               <span className="font-bold">
-                                Rp {parseFloat(bid.auction.currentPrice).toLocaleString('id-ID')}
+                                Rp{" "}
+                                {parseFloat(
+                                  bid.auction.currentPrice,
+                                ).toLocaleString("id-ID")}
                               </span>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={isWinner ? "default" : "secondary"}>
+                              <Badge
+                                variant={isWinner ? "default" : "secondary"}
+                              >
                                 {isWinner ? "Menang" : "Kalah"}
                               </Badge>
                             </TableCell>
                             <TableCell>
                               <span className="text-sm text-gray-600">
-                                {new Date(bid.auction.endTime).toLocaleDateString('id-ID')}
+                                {new Date(
+                                  bid.auction.endTime,
+                                ).toLocaleDateString("id-ID")}
                               </span>
                             </TableCell>
                           </TableRow>
@@ -628,7 +790,8 @@ export default function UserDashboard() {
                       Watchlist kosong
                     </h3>
                     <p className="text-gray-600 mb-4">
-                      Tambahkan lelang ke watchlist untuk memantau perkembangannya.
+                      Tambahkan lelang ke watchlist untuk memantau
+                      perkembangannya.
                     </p>
                     <Button>Jelajahi Lelang</Button>
                   </div>
@@ -644,19 +807,34 @@ export default function UserDashboard() {
               <TabsContent value="profile" className="space-y-4">
                 <div className="max-w-2xl">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-medium text-gray-900">Informasi Profil</h3>
+                    <h3 className="text-lg font-medium text-gray-900">
+                      Informasi Profil
+                    </h3>
                     {!isEditingProfile ? (
-                      <Button onClick={() => setIsEditingProfile(true)} variant="outline">
+                      <Button
+                        onClick={() => setIsEditingProfile(true)}
+                        variant="outline"
+                      >
                         <Edit className="h-4 w-4 mr-2" />
                         Edit Profil
                       </Button>
                     ) : (
                       <div className="flex gap-2">
-                        <Button onClick={handleCancelEdit} variant="outline" size="sm">
+                        <Button
+                          onClick={handleCancelEdit}
+                          variant="outline"
+                          size="sm"
+                        >
                           Batal
                         </Button>
-                        <Button onClick={handleSaveProfile} disabled={updateProfileMutation.isPending} size="sm">
-                          {updateProfileMutation.isPending ? "Menyimpan..." : "Simpan"}
+                        <Button
+                          onClick={handleSaveProfile}
+                          disabled={updateProfileMutation.isPending}
+                          size="sm"
+                        >
+                          {updateProfileMutation.isPending
+                            ? "Menyimpan..."
+                            : "Simpan"}
                         </Button>
                       </div>
                     )}
@@ -666,84 +844,150 @@ export default function UserDashboard() {
                     <div className="space-y-4">
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Nama Depan</label>
-                          <p className="mt-1 text-sm text-gray-900">{user?.firstName}</p>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Nama Depan
+                          </label>
+                          <p className="mt-1 text-sm text-gray-900">
+                            {user?.firstName}
+                          </p>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Nama Belakang</label>
-                          <p className="mt-1 text-sm text-gray-900">{user?.lastName}</p>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Nama Belakang
+                          </label>
+                          <p className="mt-1 text-sm text-gray-900">
+                            {user?.lastName}
+                          </p>
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Username</label>
-                        <p className="mt-1 text-sm text-gray-900">{user?.username}</p>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Username
+                        </label>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {user?.username}
+                        </p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Email</label>
-                        <p className="mt-1 text-sm text-gray-900">{user?.email}</p>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Email
+                        </label>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {user?.email}
+                        </p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Nomor Telepon</label>
-                        <p className="mt-1 text-sm text-gray-900">{user?.phone || "Belum diisi"}</p>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Nomor Telepon
+                        </label>
+                        <p className="mt-1 text-sm text-gray-900">
+                          {user?.phone || "Belum diisi"}
+                        </p>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Rating</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Rating
+                        </label>
                         <div className="flex items-center mt-1">
                           <Star className="h-4 w-4 text-yellow-500 mr-1" />
-                          <span className="text-sm text-gray-900">{stats?.rating || "0.0"}</span>
+                          <span className="text-sm text-gray-900">
+                            {stats?.rating || "0.0"}
+                          </span>
                         </div>
                       </div>
                     </div>
                   ) : (
-                    <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+                    <form
+                      className="space-y-4"
+                      onSubmit={(e) => e.preventDefault()}
+                    >
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Nama Depan</label>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Nama Depan
+                          </label>
                           <Input
                             value={profileForm.firstName}
-                            onChange={(e) => setProfileForm({...profileForm, firstName: e.target.value})}
+                            onChange={(e) =>
+                              setProfileForm({
+                                ...profileForm,
+                                firstName: e.target.value,
+                              })
+                            }
                             placeholder="Nama depan"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700">Nama Belakang</label>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Nama Belakang
+                          </label>
                           <Input
                             value={profileForm.lastName}
-                            onChange={(e) => setProfileForm({...profileForm, lastName: e.target.value})}
+                            onChange={(e) =>
+                              setProfileForm({
+                                ...profileForm,
+                                lastName: e.target.value,
+                              })
+                            }
                             placeholder="Nama belakang"
                           />
                         </div>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Username</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Username
+                        </label>
                         <Input
                           value={profileForm.username}
-                          onChange={(e) => setProfileForm({...profileForm, username: e.target.value})}
+                          onChange={(e) =>
+                            setProfileForm({
+                              ...profileForm,
+                              username: e.target.value,
+                            })
+                          }
                           placeholder="Username"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Email</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Email
+                        </label>
                         <Input
                           type="email"
                           value={profileForm.email}
-                          onChange={(e) => setProfileForm({...profileForm, email: e.target.value})}
+                          onChange={(e) =>
+                            setProfileForm({
+                              ...profileForm,
+                              email: e.target.value,
+                            })
+                          }
                           placeholder="Email"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Nomor Telepon</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Nomor Telepon
+                        </label>
                         <Input
                           value={profileForm.phone}
-                          onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+                          onChange={(e) =>
+                            setProfileForm({
+                              ...profileForm,
+                              phone: e.target.value,
+                            })
+                          }
                           placeholder="Nomor telepon"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700">Rating</label>
+                        <label className="block text-sm font-medium text-gray-700">
+                          Rating
+                        </label>
                         <div className="flex items-center mt-1">
                           <Star className="h-4 w-4 text-yellow-500 mr-1" />
-                          <span className="text-sm text-gray-900">{stats?.rating || "0.0"}</span>
+                          <span className="text-sm text-gray-900">
+                            {stats?.rating || "0.0"}
+                          </span>
                         </div>
                       </div>
                     </form>
