@@ -78,6 +78,11 @@ export default function AdminPanel() {
   } | null>(null);
   const [verificationNotes, setVerificationNotes] = useState("");
   const [archivedSearchQuery, setArchivedSearchQuery] = useState("");
+  const [documentUploads, setDocumentUploads] = useState({
+    invoice: "",
+    releaseLetter: "",
+    handover: ""
+  });
 
   const {
     data: auctions,
@@ -1627,11 +1632,11 @@ export default function AdminPanel() {
 
         {/* Payment Verification Modal */}
         {verifyPaymentModal && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
               <h2 className="text-lg font-bold mb-4">
                 {verifyPaymentModal.action === "verify"
-                  ? "Approve Payment"
+                  ? "Approve Payment & Upload Documents"
                   : "Reject Payment"}
               </h2>
 
@@ -1666,6 +1671,96 @@ export default function AdminPanel() {
                   </div>
                 )}
               </div>
+
+              {verifyPaymentModal.action === "verify" && (
+                <div className="mb-4 space-y-4 p-4 bg-blue-50 rounded-lg">
+                  <h3 className="font-medium text-gray-900">Upload Dokumen (Opsional)</h3>
+                  
+                  {/* Invoice Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Invoice/Kwitansi Pembayaran
+                    </label>
+                    <Input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            setDocumentUploads(prev => ({
+                              ...prev,
+                              invoice: event.target?.result as string
+                            }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="w-full"
+                    />
+                    {documentUploads.invoice && (
+                      <p className="text-sm text-green-600 mt-1">✓ Invoice uploaded</p>
+                    )}
+                  </div>
+
+                  {/* Release Letter Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Surat Pelepasan Kendaraan
+                    </label>
+                    <Input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            setDocumentUploads(prev => ({
+                              ...prev,
+                              releaseLetter: event.target?.result as string
+                            }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="w-full"
+                    />
+                    {documentUploads.releaseLetter && (
+                      <p className="text-sm text-green-600 mt-1">✓ Surat pelepasan uploaded</p>
+                    )}
+                  </div>
+
+                  {/* Handover Document Upload */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Bukti Serah Terima
+                    </label>
+                    <Input
+                      type="file"
+                      accept="image/*,.pdf"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            setDocumentUploads(prev => ({
+                              ...prev,
+                              handover: event.target?.result as string
+                            }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      className="w-full"
+                    />
+                    {documentUploads.handover && (
+                      <p className="text-sm text-green-600 mt-1">✓ Bukti serah terima uploaded</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1717,9 +1812,19 @@ export default function AdminPanel() {
                           ? "verified"
                           : "rejected",
                       notes: verificationNotes.trim() || undefined,
+                      documents: verifyPaymentModal.action === "verify" ? {
+                        invoiceDocument: documentUploads.invoice || undefined,
+                        releaseLetterDocument: documentUploads.releaseLetter || undefined,
+                        handoverDocument: documentUploads.handover || undefined,
+                      } : undefined,
                     });
                     setVerifyPaymentModal(null);
                     setVerificationNotes("");
+                    setDocumentUploads({
+                      invoice: "",
+                      releaseLetter: "",
+                      handover: ""
+                    });
                   }}
                   disabled={verifyPaymentMutation.isPending}
                   variant={

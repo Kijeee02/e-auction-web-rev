@@ -579,9 +579,9 @@ export function registerRoutes(app: Express): Server {
       }
 
       const paymentId = parseInt(req.params.id);
-      const { status, notes } = req.body;
+      const { status, notes, documents } = req.body;
 
-      console.log(`[API] Verifying payment ${paymentId} with status ${status}`, { notes });
+      console.log(`[API] Verifying payment ${paymentId} with status ${status}`, { notes, documents });
 
       if (!paymentId || isNaN(paymentId)) {
         return res.status(400).json({ message: "Invalid payment ID" });
@@ -591,7 +591,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ message: "Invalid status. Must be 'verified' or 'rejected'" });
       }
 
-      const payment = await storage.verifyPayment(paymentId, req.user.id, status, notes);
+      const payment = await storage.verifyPayment(paymentId, req.user.id, status, notes, documents);
       console.log(`[API] Payment verification successful:`, payment);
       res.json(payment);
     } catch (error) {

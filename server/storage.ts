@@ -638,19 +638,34 @@ export class DatabaseStorage implements IStorage {
       }));
     }
 
-    async verifyPayment(paymentId: number, adminId: number, status: string, notes?: string): Promise<Payment> {
+    async verifyPayment(paymentId: number, adminId: number, status: string, notes?: string, documents?: any): Promise<Payment> {
       try {
         const now = new Date();
-        console.log(`[verifyPayment] Updating payment ${paymentId} with status ${status}`);
+        console.log(`[verifyPayment] Updating payment ${paymentId} with status ${status}`, { documents });
+        
+        const updateData: any = { 
+          status: status, 
+          verifiedBy: adminId, 
+          notes: notes || null,
+          verifiedAt: now
+        };
+
+        // Add document fields if provided
+        if (documents && status === "verified") {
+          if (documents.invoiceDocument) {
+            updateData.invoiceDocument = documents.invoiceDocument;
+          }
+          if (documents.releaseLetterDocument) {
+            updateData.releaseLetterDocument = documents.releaseLetterDocument;
+          }
+          if (documents.handoverDocument) {
+            updateData.handoverDocument = documents.handoverDocument;
+          }
+        }
         
         const [payment] = await db
           .update(payments)
-          .set({ 
-            status: status, 
-            verifiedBy: adminId, 
-            notes: notes || null,
-            verifiedAt: now // Store as Date object
-          })
+          .set(updateData)
           .where(eq(payments.id, paymentId))
           .returning();
           

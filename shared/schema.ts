@@ -80,6 +80,10 @@ export const payments = sqliteTable("payments", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   verifiedAt: integer("verified_at", { mode: "timestamp" }),
   verifiedBy: integer("verified_by").references(() => users.id),
+  // Admin document uploads
+  invoiceDocument: text("invoice_document"), // Invoice/Receipt URL
+  releaseLetterDocument: text("release_letter_document"), // Surat Pelepasan Kendaraan URL
+  handoverDocument: text("handover_document"), // Bukti Serah Terima URL
 });
 
 // Relations
