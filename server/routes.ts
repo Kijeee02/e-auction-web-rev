@@ -821,9 +821,22 @@ export function registerRoutes(app: Express): Server {
       }
 
       const notificationId = parseInt(req.params.id);
-      await storage.markNotificationAsRead(notificationId, req.user.id);
-      res.json({ message: "Notification marked as read" });
+      
+      // Get the notification first to verify ownership or admin access
+      const notification = await storage.getNotification(notificationId);
+      if (!notification) {
+        return res.status(404).json({ message: "Notification not found" });
+      }
+
+      // Allow user to mark their own notifications or admin to mark any notification
+      if (notification.userId === req.user.id || req.user.role === "admin") {
+        await storage.markNotificationAsRead(notificationId, notification.userId);
+        res.json({ message: "Notification marked as read" });
+      } else {
+        res.status(403).json({ message: "Access denied" });
+      }
     } catch (error) {
+      console.error("Error marking notification as read:", error);
       res.status(500).json({ message: "Failed to mark notification as read" });
     }
   });

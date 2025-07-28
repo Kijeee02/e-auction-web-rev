@@ -107,6 +107,7 @@ export interface IStorage {
   createNotification(notification: InsertNotification): Promise<Notification>;
   getUserNotifications(userId: number): Promise<Notification[]>;
   getAdminNotifications(): Promise<Notification[]>;
+  getNotification(id: number): Promise<Notification | undefined>;
   markNotificationAsRead(notificationId: number, userId: number): Promise<void>;
   markAllNotificationsAsRead(userId: number): Promise<void>;
 
@@ -412,6 +413,7 @@ export class DatabaseStorage implements IStorage {
             auctionId: id,
             auctionTitle: auction.title,
             winningBid: highestBid?.amount,
+            action: "view_auction",
           }),
         });
 
@@ -433,6 +435,7 @@ export class DatabaseStorage implements IStorage {
               auctionId: id,
               auctionTitle: auction.title,
               winningBid: highestBid?.amount,
+              action: "view_auction",
             }),
           });
         }
@@ -614,6 +617,7 @@ export class DatabaseStorage implements IStorage {
             auctionId: bid.auctionId,
             auctionTitle: auction.title,
             newBidAmount: bid.amount,
+            action: "view_auction",
           }),
         });
       }
@@ -1116,6 +1120,19 @@ export class DatabaseStorage implements IStorage {
         .limit(50);
     } catch (error) {
       console.error("Error fetching admin notifications:", error);
+      throw error;
+    }
+  }
+
+  async getNotification(id: number): Promise<Notification | undefined> {
+    try {
+      const [notification] = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.id, id));
+      return notification || undefined;
+    } catch (error) {
+      console.error("Error fetching notification:", error);
       throw error;
     }
   }

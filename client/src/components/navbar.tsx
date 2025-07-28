@@ -172,20 +172,38 @@ export default function Navbar() {
                                   markAsReadMutation.mutate(notification.id);
                                 }
                                 
-                                // Handle navigation based on notification type and data
-                                if (notificationData.auctionId && (notificationData.action === "view_auction" || notificationData.action === "make_payment")) {
-                                  // Close notification dropdown
-                                  setNotificationOpen(false);
-                                  // Navigate to auction detail
-                                  window.location.href = `/auction/${notificationData.auctionId}`;
-                                } else if (notification.type === "payment" && user?.role === "admin") {
-                                  // For admin payment notifications, go to admin panel payments tab
-                                  setNotificationOpen(false);
-                                  window.location.href = `/admin#payments`;
-                                } else if (notification.type === "auction" && user?.role === "admin") {
-                                  // For admin auction notifications, go to admin panel
-                                  setNotificationOpen(false);
-                                  window.location.href = `/admin`;
+                                // Handle navigation based on notification type and user role
+                                if (user?.role === "admin") {
+                                  // Admin navigation
+                                  if (notification.type === "payment") {
+                                    setNotificationOpen(false);
+                                    setLocation("/admin");
+                                    // Use setTimeout to ensure navigation completes before hash change
+                                    setTimeout(() => {
+                                      window.location.hash = "payments";
+                                    }, 100);
+                                  } else if (notification.type === "auction" && notificationData.auctionId) {
+                                    setNotificationOpen(false);
+                                    setLocation(`/auction/${notificationData.auctionId}`);
+                                  } else {
+                                    setNotificationOpen(false);
+                                    setLocation("/admin");
+                                  }
+                                } else {
+                                  // Regular user navigation
+                                  if (notificationData.auctionId) {
+                                    // For any notification with auctionId, go to auction detail
+                                    setNotificationOpen(false);
+                                    setLocation(`/auction/${notificationData.auctionId}`);
+                                  } else if (notification.type === "bid" || notification.type === "auction") {
+                                    // For bid/auction notifications without auctionId, go to dashboard
+                                    setNotificationOpen(false);
+                                    setLocation("/dashboard");
+                                  } else if (notification.type === "payment") {
+                                    // For payment notifications, go to dashboard
+                                    setNotificationOpen(false);
+                                    setLocation("/dashboard");
+                                  }
                                 }
                               }}
                             >
@@ -210,7 +228,7 @@ export default function Navbar() {
                                       timeStyle: "short",
                                     })}
                                   </p>
-                                  {(notificationData.auctionId || (notification.type === "payment" && user?.role === "admin")) && (
+                                  {(notificationData.auctionId || notification.type === "payment" || notification.type === "bid" || notification.type === "auction") && (
                                     <p className="text-xs text-blue-600 mt-1 font-medium">
                                       📱 Klik untuk melihat detail
                                     </p>
