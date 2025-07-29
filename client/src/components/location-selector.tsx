@@ -43,17 +43,64 @@ export default function LocationSelector({ value, onChange, required }: Location
   const [selectedVillage, setSelectedVillage] = useState("");
   
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [useCustomInput, setUseCustomInput] = useState(false);
+  const [customLocation, setCustomLocation] = useState("");
+
+  // Initialize custom location from value prop
+  useEffect(() => {
+    if (value && !selectedProvince) {
+      setCustomLocation(value);
+    }
+  }, [value, selectedProvince]);
 
   // Load provinces on component mount
   useEffect(() => {
     const loadProvinces = async () => {
       try {
         setLoading(true);
-        const response = await fetch('https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/provinces.json');
-        const data = await response.json();
+        setError("");
+        
+        // Try multiple sources for province data
+        const sources = [
+          'https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/provinces.json',
+          'https://raw.githubusercontent.com/emsifa/api-wilayah-indonesia/master/api/provinces.json'
+        ];
+        
+        let data = null;
+        for (const source of sources) {
+          try {
+            const response = await fetch(source);
+            if (response.ok) {
+              data = await response.json();
+              console.log("Provinces loaded from:", source);
+              break;
+            }
+          } catch (err) {
+            console.warn("Failed to load from:", source);
+          }
+        }
+        
+        if (!data) {
+          // Use fallback data for major provinces in Jabodetabek area
+          data = [
+            { id: "31", name: "DKI Jakarta" },
+            { id: "32", name: "Jawa Barat" },
+            { id: "36", name: "Banten" }
+          ];
+          console.log("Using fallback province data");
+        }
+        
         setProvinces(data);
       } catch (error) {
         console.error('Error loading provinces:', error);
+        setError("Gagal memuat data provinsi. Menggunakan input manual.");
+        // Use fallback data
+        setProvinces([
+          { id: "31", name: "DKI Jakarta" },
+          { id: "32", name: "Jawa Barat" },
+          { id: "36", name: "Banten" }
+        ]);
       } finally {
         setLoading(false);
       }
@@ -68,8 +115,56 @@ export default function LocationSelector({ value, onChange, required }: Location
       const loadRegencies = async () => {
         try {
           setLoading(true);
-          const response = await fetch('https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/regencies.json');
-          const data = await response.json();
+          setError("");
+          
+          const sources = [
+            'https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/regencies.json',
+            'https://raw.githubusercontent.com/emsifa/api-wilayah-indonesia/master/api/regencies.json'
+          ];
+          
+          let data = null;
+          for (const source of sources) {
+            try {
+              const response = await fetch(source);
+              if (response.ok) {
+                data = await response.json();
+                break;
+              }
+            } catch (err) {
+              console.warn("Failed to load regencies from:", source);
+            }
+          }
+          
+          if (!data) {
+            // Fallback regency data for major areas
+            if (selectedProvince === "31") { // DKI Jakarta
+              data = [
+                { id: "3171", province_id: "31", name: "Jakarta Selatan" },
+                { id: "3172", province_id: "31", name: "Jakarta Timur" },
+                { id: "3173", province_id: "31", name: "Jakarta Pusat" },
+                { id: "3174", province_id: "31", name: "Jakarta Barat" },
+                { id: "3175", province_id: "31", name: "Jakarta Utara" }
+              ];
+            } else if (selectedProvince === "32") { // Jawa Barat
+              data = [
+                { id: "3201", province_id: "32", name: "Kabupaten Bogor" },
+                { id: "3271", province_id: "32", name: "Kota Bogor" },
+                { id: "3204", province_id: "32", name: "Kabupaten Bekasi" },
+                { id: "3275", province_id: "32", name: "Kota Bekasi" },
+                { id: "3216", province_id: "32", name: "Kabupaten Bekasi" },
+                { id: "3276", province_id: "32", name: "Kota Depok" }
+              ];
+            } else if (selectedProvince === "36") { // Banten
+              data = [
+                { id: "3671", province_id: "36", name: "Kota Tangerang" },
+                { id: "3672", province_id: "36", name: "Kota Tangerang Selatan" },
+                { id: "3601", province_id: "36", name: "Kabupaten Tangerang" }
+              ];
+            } else {
+              data = [];
+            }
+          }
+          
           const filteredRegencies = data.filter((regency: Regency) => regency.province_id === selectedProvince);
           setRegencies(filteredRegencies);
           setDistricts([]);
@@ -79,6 +174,8 @@ export default function LocationSelector({ value, onChange, required }: Location
           setSelectedVillage("");
         } catch (error) {
           console.error('Error loading regencies:', error);
+          setError("Gagal memuat data kabupaten/kota");
+          setRegencies([]);
         } finally {
           setLoading(false);
         }
@@ -94,8 +191,29 @@ export default function LocationSelector({ value, onChange, required }: Location
       const loadDistricts = async () => {
         try {
           setLoading(true);
-          const response = await fetch('https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/districts.json');
-          const data = await response.json();
+          
+          const sources = [
+            'https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/districts.json',
+            'https://raw.githubusercontent.com/emsifa/api-wilayah-indonesia/master/api/districts.json'
+          ];
+          
+          let data = null;
+          for (const source of sources) {
+            try {
+              const response = await fetch(source);
+              if (response.ok) {
+                data = await response.json();
+                break;
+              }
+            } catch (err) {
+              console.warn("Failed to load districts from:", source);
+            }
+          }
+          
+          if (!data) {
+            data = []; // Empty fallback for districts
+          }
+          
           const filteredDistricts = data.filter((district: District) => district.regency_id === selectedRegency);
           setDistricts(filteredDistricts);
           setVillages([]);
@@ -103,6 +221,7 @@ export default function LocationSelector({ value, onChange, required }: Location
           setSelectedVillage("");
         } catch (error) {
           console.error('Error loading districts:', error);
+          setDistricts([]);
         } finally {
           setLoading(false);
         }
@@ -118,13 +237,35 @@ export default function LocationSelector({ value, onChange, required }: Location
       const loadVillages = async () => {
         try {
           setLoading(true);
-          const response = await fetch('https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/villages.json');
-          const data = await response.json();
+          
+          const sources = [
+            'https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/villages.json',
+            'https://raw.githubusercontent.com/emsifa/api-wilayah-indonesia/master/data/villages.json'
+          ];
+          
+          let data = null;
+          for (const source of sources) {
+            try {
+              const response = await fetch(source);
+              if (response.ok) {
+                data = await response.json();
+                break;
+              }
+            } catch (err) {
+              console.warn("Failed to load villages from:", source);
+            }
+          }
+          
+          if (!data) {
+            data = []; // Empty fallback for villages
+          }
+          
           const filteredVillages = data.filter((village: Village) => village.district_id === selectedDistrict);
           setVillages(filteredVillages);
           setSelectedVillage("");
         } catch (error) {
           console.error('Error loading villages:', error);
+          setVillages([]);
         } finally {
           setLoading(false);
         }
@@ -136,6 +277,11 @@ export default function LocationSelector({ value, onChange, required }: Location
 
   // Update parent component when location changes
   useEffect(() => {
+    if (useCustomInput) {
+      onChange(customLocation);
+      return;
+    }
+    
     const provinceName = provinces.find(p => p.id === selectedProvince)?.name || "";
     const regencyName = regencies.find(r => r.id === selectedRegency)?.name || "";
     const districtName = districts.find(d => d.id === selectedDistrict)?.name || "";
@@ -153,10 +299,53 @@ export default function LocationSelector({ value, onChange, required }: Location
     }
     
     onChange(location);
-  }, [selectedProvince, selectedRegency, selectedDistrict, selectedVillage, provinces, regencies, districts, villages, onChange]);
+  }, [selectedProvince, selectedRegency, selectedDistrict, selectedVillage, provinces, regencies, districts, villages, onChange, useCustomInput, customLocation]);
+
+  if (useCustomInput) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="block text-sm font-medium text-gray-700">Lokasi</label>
+          <button
+            type="button"
+            onClick={() => setUseCustomInput(false)}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Gunakan Dropdown
+          </button>
+        </div>
+        <Input
+          placeholder="Masukkan lokasi (contoh: Jakarta Selatan, DKI Jakarta)"
+          value={customLocation}
+          onChange={(e) => setCustomLocation(e.target.value)}
+          required={required}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <label className="block text-sm font-medium text-gray-700">Lokasi</label>
+        <button
+          type="button"
+          onClick={() => {
+            setUseCustomInput(true);
+            setCustomLocation(value || "");
+          }}
+          className="text-sm text-blue-600 hover:underline"
+        >
+          Input Manual
+        </button>
+      </div>
+      
+      {error && (
+        <div className="text-sm text-yellow-600 bg-yellow-50 p-2 rounded">
+          {error}
+        </div>
+      )}
+      
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Province Selection */}
         <div>
@@ -197,7 +386,7 @@ export default function LocationSelector({ value, onChange, required }: Location
 
         {/* District Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Kecamatan</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Kecamatan (Opsional)</label>
           <select
             value={selectedDistrict}
             onChange={(e) => setSelectedDistrict(e.target.value)}
@@ -215,7 +404,7 @@ export default function LocationSelector({ value, onChange, required }: Location
 
         {/* Village Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Kelurahan/Desa</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Kelurahan/Desa (Opsional)</label>
           <select
             value={selectedVillage}
             onChange={(e) => setSelectedVillage(e.target.value)}
