@@ -1848,8 +1848,7 @@ export default function AdminPanel() {
                     description: newAuction.description,
                     condition: newAuction.condition,
                     location: newAuction.location,
-                    categoryId: parseInt(newAuction<replit_final_file>
-.categoryId),
+                    categoryId: parseInt(newAuction.categoryId),
                     imageUrl: newAuction.imageUrl || undefined,
                     startingPrice: parseFloat(newAuction.startingPrice),
                     currentPrice: parseFloat(newAuction.startingPrice),
