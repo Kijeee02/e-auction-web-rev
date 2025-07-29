@@ -45,6 +45,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Auction, Payment } from "@shared/schema";
 import { useLocation, useParams } from "wouter";
 import VehicleInfoModal from "@/components/vehicle-info-modal";
+import LocationSelector from "@/components/location-selector";
 
 export default function AdminPanel() {
   const { user } = useAuth();
@@ -1847,7 +1848,8 @@ export default function AdminPanel() {
                     description: newAuction.description,
                     condition: newAuction.condition,
                     location: newAuction.location,
-                    categoryId: parseInt(newAuction.categoryId),
+                    categoryId: parseInt(newAuction<replit_final_file>
+.categoryId),
                     imageUrl: newAuction.imageUrl || undefined,
                     startingPrice: parseFloat(newAuction.startingPrice),
                     currentPrice: parseFloat(newAuction.startingPrice),
@@ -1917,11 +1919,11 @@ export default function AdminPanel() {
                     <option value="good">Baik</option>
                     <option value="fair">Cukup</option>
                   </select>
-                  <Input
-                    placeholder="Lokasi"
+                  {/* Location selector component */}
+                  <LocationSelector
                     value={newAuction.location}
-                    onChange={(e) =>
-                      setNewAuction({ ...newAuction, location: e.target.value })
+                    onChange={(location) =>
+                      setNewAuction({ ...newAuction, location })
                     }
                     required
                   />

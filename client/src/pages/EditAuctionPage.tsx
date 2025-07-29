@@ -9,6 +9,7 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/navbar";
 import VehicleInfoModal from "@/components/vehicle-info-modal";
+import LocationSelector from "@/components/location-selector";
 import { FileText } from "lucide-react";
 
 export default function EditAuctionPage() {
@@ -219,12 +220,14 @@ export default function EditAuctionPage() {
                                     <option value="fair">Cukup</option>
                                 </select>
                                 
-                                <Input 
-                                    placeholder="Lokasi" 
-                                    value={form.location} 
-                                    onChange={e => setForm(f => ({ ...f, location: e.target.value }))} 
-                                    required
-                                />
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Lokasi</label>
+                                    <LocationSelector
+                                        value={form.location}
+                                        onChange={(location) => setForm(f => ({ ...f, location }))}
+                                        required
+                                    />
+                                </div>
                                 
                                 <select
                                     value={form.categoryId}
