@@ -139,7 +139,18 @@ export function registerRoutes(app: Express): Server {
       const auctionData = insertAuctionSchema.parse(req.body);
       const auction = await storage.createAuction(auctionData);
       
-      // No admin notification for auction creation - admins don't need this
+      // Admin notification for new auction creation
+      await storage.createAdminNotification(
+        "auction",
+        "Lelang Baru Dibuat",
+        `Lelang baru "${auction.title}" telah dibuat dan aktif.`,
+        {
+          auctionId: auction.id,
+          auctionTitle: auction.title,
+          startingPrice: auction.startingPrice,
+          endTime: auction.endTime,
+        }
+      );
       
       res.status(201).json(auction);
     } catch (error) {

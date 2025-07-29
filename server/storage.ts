@@ -732,18 +732,20 @@ export class DatabaseStorage implements IStorage {
         // Get auction details for notification
         const auction = await this.getAuction(payment.auctionId);
         if (auction) {
-          // Notify admins about new payment submission
-          await this.createAdminNotification(
-            "payment",
-            "Pembayaran Ulang Diterima",
-            `Pembayaran ulang untuk lelang "${auction.title}" telah diterima dan menunggu verifikasi.`,
-            {
-              auctionId: payment.auctionId,
-              auctionTitle: auction.title,
-              amount: payment.amount,
-              paymentId: updatedPayment.id,
-            }
-          );
+          // Only notify admins about pending payment resubmission
+          if (updatedPayment.status === "pending") {
+            await this.createAdminNotification(
+              "payment",
+              "Pembayaran Ulang Diterima",
+              `Pembayaran ulang untuk lelang "${auction.title}" telah diterima dan menunggu verifikasi.`,
+              {
+                auctionId: payment.auctionId,
+                auctionTitle: auction.title,
+                amount: payment.amount,
+                paymentId: updatedPayment.id,
+              }
+            );
+          }
 
           // Notify user about payment resubmission
           await this.createNotification({
@@ -942,7 +944,7 @@ export class DatabaseStorage implements IStorage {
             : query.orderBy(desc(payments.verifiedAt))
         );
 
-        return results.map((result) {
+        return results.map((result) => ({
           ...result.payment,
           auction: result.auction,
           winner: result.winner,
