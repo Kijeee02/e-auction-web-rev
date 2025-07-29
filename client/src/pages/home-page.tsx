@@ -16,14 +16,23 @@ export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: auctions = [], isLoading: auctionsLoading } = useQuery<AuctionWithDetails[]>({
+    queryKey: ["/api/auctions"],
+  });
+
+  const { data: activeAuctions = [], isLoading: activeAuctionsLoading } = useQuery<AuctionWithDetails[]>({
     queryKey: ["/api/auctions", { status: "active" }],
+    queryFn: async () => {
+      const res = await fetch("/api/auctions?status=active");
+      if (!res.ok) throw new Error("Failed to fetch active auctions");
+      return res.json();
+    },
   });
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
 
-  const filteredAuctions = auctions.filter(auction => {
+  const filteredAuctions = activeAuctions.filter(auction => {
     const matchesCategory = selectedCategory === "all" || auction.categoryId === parseInt(selectedCategory);
     const matchesSearch = !searchQuery || 
       auction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -84,7 +93,7 @@ export default function HomePage() {
                       </CardContent>
                     </Card>
                     <div className="text-center">
-                      <span className="text-accent font-semibold">🔥 Trending: {auctions.length} lelang aktif hari ini</span>
+                      <span className="text-accent font-semibold">🔥 Trending: {activeAuctions.length} lelang aktif hari ini</span>
                     </div>
                   </div>
                 </CardContent>
@@ -139,7 +148,7 @@ export default function HomePage() {
           </div>
 
           {/* Auction Grid */}
-          {auctionsLoading ? (
+          {activeAuctionsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <Card key={i} className="auction-card animate-pulse">

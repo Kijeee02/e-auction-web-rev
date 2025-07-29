@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Bell, ChevronDown, User, Settings, LogOut, Gavel, Shield, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Notification } from "@shared/schema";
+import { Notification, Category } from "@shared/schema";
 
 export default function Navbar() {
   const [location, setLocation] = useLocation();
@@ -23,6 +23,16 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState("");
   const [notificationOpen, setNotificationOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  // Get categories for navigation
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+    queryFn: async () => {
+      const res = await fetch("/api/categories");
+      if (!res.ok) throw new Error("Failed to fetch categories");
+      return res.json();
+    },
+  });
 
   // Get notifications based on user role
   const notificationEndpoint = user?.role === "admin" ? "/api/admin/notifications" : "/api/notifications";
@@ -147,21 +157,13 @@ export default function Navbar() {
                       Semua Kategori
                     </Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/?categoryId=19" className="cursor-pointer">
-                      Motor
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/?categoryId=20" className="cursor-pointer">
-                      Mobil
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/?categoryId=21" className="cursor-pointer">
-                      Elektronik
-                    </Link>
-                  </DropdownMenuItem>
+                  {categories.map((category) => (
+                    <DropdownMenuItem key={category.id} asChild>
+                      <Link href={`/?categoryId=${category.id}`} className="cursor-pointer">
+                        {category.name}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
 
@@ -232,21 +234,13 @@ export default function Navbar() {
                 <DropdownMenuItem disabled className="text-gray-900 font-medium">
                   📂 Kategori
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/?categoryId=19" className="cursor-pointer ml-4">
-                    🏍️ Motor
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/?categoryId=20" className="cursor-pointer ml-4">
-                    🚗 Mobil
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/?categoryId=21" className="cursor-pointer ml-4">
-                    📱 Elektronik
-                  </Link>
-                </DropdownMenuItem>
+                {categories.map((category) => (
+                  <DropdownMenuItem key={category.id} asChild>
+                    <Link href={`/?categoryId=${category.id}`} className="cursor-pointer ml-4">
+                      {category.name}
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem disabled className="text-gray-900 font-medium">
                   ❓ Cara Kerja
