@@ -224,7 +224,7 @@ export default function Navbar() {
                                     
                                     // Handle navigation based on notification type and user role
                                     if (user?.role === "admin") {
-                                      // Admin navigation
+                                      // Admin navigation - only handle payment notifications
                                       if (notification.type === "payment") {
                                         setNotificationOpen(false);
                                         setLocation("/admin");
@@ -232,10 +232,8 @@ export default function Navbar() {
                                         setTimeout(() => {
                                           window.location.hash = "payments";
                                         }, 100);
-                                      } else if (notification.type === "auction" && notificationData.auctionId) {
-                                        setNotificationOpen(false);
-                                        setLocation(`/auction/${notificationData.auctionId}`);
                                       } else {
+                                        // For any other notification type, go to admin panel
                                         setNotificationOpen(false);
                                         setLocation("/admin");
                                       }

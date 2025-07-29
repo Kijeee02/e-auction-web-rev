@@ -139,17 +139,7 @@ export function registerRoutes(app: Express): Server {
       const auctionData = insertAuctionSchema.parse(req.body);
       const auction = await storage.createAuction(auctionData);
       
-      // Create admin notification for new auction
-      await storage.createAdminNotification(
-        "auction",
-        "Lelang Baru Ditambahkan",
-        `Lelang baru "${auction.title}" telah berhasil ditambahkan ke sistem.`,
-        {
-          auctionId: auction.id,
-          auctionTitle: auction.title,
-          startingPrice: auction.startingPrice,
-        }
-      );
+      // No admin notification for auction creation - admins don't need this
       
       res.status(201).json(auction);
     } catch (error) {
@@ -665,6 +655,22 @@ export function registerRoutes(app: Express): Server {
 
       const payment = await storage.createPayment(paymentData);
       console.log("Payment created successfully:", payment);
+      
+      // Create admin notification for pending payment only
+      if (payment.status === "pending") {
+        await storage.createAdminNotification(
+          "payment",
+          "Pembayaran Baru Menunggu Verifikasi",
+          `Pembayaran untuk lelang "${auction.title}" perlu diverifikasi oleh admin.`,
+          {
+            paymentId: payment.id,
+            auctionId: payment.auctionId,
+            auctionTitle: auction.title,
+            amount: payment.amount,
+            paymentMethod: payment.paymentMethod,
+          }
+        );
+      }
       
       res.status(201).json(payment);
     } catch (error) {

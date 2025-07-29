@@ -708,7 +708,7 @@ export class DatabaseStorage implements IStorage {
     try {
       // Check if there's a rejected payment to update instead of creating new
       const existingPayment = await this.getPaymentByAuctionId(payment.auctionId);
-      
+
       if (existingPayment && existingPayment.status === "rejected") {
         // Update the existing rejected payment
         const [updatedPayment] = await db
@@ -728,7 +728,7 @@ export class DatabaseStorage implements IStorage {
           })
           .where(eq(payments.id, existingPayment.id))
           .returning();
-        
+
         // Get auction details for notification
         const auction = await this.getAuction(payment.auctionId);
         if (auction) {
@@ -878,51 +878,23 @@ export class DatabaseStorage implements IStorage {
       const auction = await this.getAuction(updatedPayment.auctionId);
 
       if (auction && updatedPayment.winnerId) {
-        if (status === "verified") {
-          // Notify user about payment approval
-          await this.createNotification({
-            userId: updatedPayment.winnerId,
-            type: "payment",
-            title: "✅ Pembayaran Disetujui",
-            message: `Pembayaran Anda untuk lelang "${auction.title}" telah disetujui. Silakan cek detail lelang untuk informasi lebih lanjut.`,
-            data: JSON.stringify({
-              auctionId: updatedPayment.auctionId,
-              auctionTitle: auction.title,
-              amount: updatedPayment.amount,
-              paymentId: updatedPayment.id,
-              action: "view_auction",
-            }),
-          });
-
-          // Notify admins about payment completion
-          await this.createAdminNotification(
-            "payment",
-            "Pembayaran Telah Diverifikasi",
-            `Pembayaran untuk lelang "${auction.title}" telah berhasil diverifikasi dan disetujui.`,
-            {
-              auctionId: updatedPayment.auctionId,
-              auctionTitle: auction.title,
-              amount: updatedPayment.amount,
-              paymentId: updatedPayment.id,
-            }
-          );
-        } else if (status === "rejected") {
-          // Notify user about payment rejection
-          await this.createNotification({
-            userId: updatedPayment.winnerId,
-            type: "payment",
-            title: "❌ Pembayaran Ditolak",
-            message: `Pembayaran Anda untuk lelang "${auction.title}" ditolak. ${notes ? `Alasan: ${notes}` : ''} Klik untuk melihat detail dan mengajukan pembayaran ulang.`,
-            data: JSON.stringify({
-              auctionId: updatedPayment.auctionId,
-              auctionTitle: auction.title,
-              amount: updatedPayment.amount,
-              paymentId: updatedPayment.id,
-              action: "view_auction",
-              reason: notes,
-            }),
-          });
-        }
+        // Create user notification about payment status (not admin notification)
+        await this.createNotification({
+          userId: updatedPayment.winnerId,
+          type: "payment",
+          title: status === "verified" ? "Pembayaran Disetujui" : "Pembayaran Ditolak",
+          message: status === "verified" 
+            ? `Pembayaran Anda untuk lelang "${auction.title}" telah disetujui.`
+            : `Pembayaran Anda untuk lelang "${auction.title}" ditolak. ${notes || ''}`,
+          data: JSON.stringify({
+            paymentId: paymentId,
+            auctionId: updatedPayment.auctionId,
+            auctionTitle: auction.title,
+            status: status,
+            notes: notes,
+            action: "view_payment"
+          }),
+        });
       }
 
       console.log(`[Storage] Payment verification successful:`, updatedPayment);
@@ -970,7 +942,7 @@ export class DatabaseStorage implements IStorage {
             : query.orderBy(desc(payments.verifiedAt))
         );
 
-        return results.map((result) => ({
+        return results.map((result) {
           ...result.payment,
           auction: result.auction,
           winner: result.winner,
