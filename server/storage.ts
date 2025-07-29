@@ -404,21 +404,26 @@ export class DatabaseStorage implements IStorage {
     // Create notifications
     if (auction) {
       if (winnerId) {
-        // Notify winner
-        await this.createNotification({
-          userId: winnerId,
-          type: "auction",
-          title: "Selamat! Anda Menang",
-          message: `Anda memenangkan lelang ${auction.title}. Silakan lakukan pembayaran.`,
-          data: JSON.stringify({
-            auctionId: id,
-            auctionTitle: auction.title,
-            winningBid: highestBid?.amount,
-            action: "view_auction",
-          }),
-        });
+        // Get winner details to check if they're not admin
+        const winner = await this.getUser(winnerId);
+        
+        // Only notify winner if they're not an admin
+        if (winner && winner.role !== "admin") {
+          await this.createNotification({
+            userId: winnerId,
+            type: "auction",
+            title: "Selamat! Anda Menang",
+            message: `Anda memenangkan lelang ${auction.title}. Silakan lakukan pembayaran.`,
+            data: JSON.stringify({
+              auctionId: id,
+              auctionTitle: auction.title,
+              winningBid: highestBid?.amount,
+              action: "view_auction",
+            }),
+          });
+        }
 
-        // Notify other bidders that they lost
+        // Notify other bidders that they lost (excluding admins)
         const allBids = await this.getBidsForAuction(id);
         const otherBidders = allBids
           .filter(bid => bid.bidderId !== winnerId)
@@ -427,18 +432,22 @@ export class DatabaseStorage implements IStorage {
         const uniqueBidders = [...new Set(otherBidders)];
 
         for (const bidderId of uniqueBidders) {
-          await this.createNotification({
-            userId: bidderId,
-            type: "auction",
-            title: "Lelang Berakhir",
-            message: `Lelang ${auction.title} telah berakhir. Sayangnya Anda tidak memenangkan lelang ini.`,
-            data: JSON.stringify({
-              auctionId: id,
-              auctionTitle: auction.title,
-              winningBid: highestBid?.amount,
-              action: "view_auction",
-            }),
-          });
+          // Check if bidder is not admin before notifying
+          const bidder = await this.getUser(bidderId);
+          if (bidder && bidder.role !== "admin") {
+            await this.createNotification({
+              userId: bidderId,
+              type: "auction",
+              title: "Lelang Berakhir",
+              message: `Lelang ${auction.title} telah berakhir. Sayangnya Anda tidak memenangkan lelang ini.`,
+              data: JSON.stringify({
+                auctionId: id,
+                auctionTitle: auction.title,
+                winningBid: highestBid?.amount,
+                action: "view_auction",
+              }),
+            });
+          }
         }
       }
     }
@@ -609,18 +618,22 @@ export class DatabaseStorage implements IStorage {
 
       if (previousHighestBids.length > 0) {
         const previousBidder = previousHighestBids[0];
-        await this.createNotification({
-          userId: previousBidder.bidderId,
-          type: "bid",
-          title: "Penawaran Terlampaui",
-          message: `Penawaran Anda untuk ${auction.title} telah dilampaui oleh pengguna lain`,
-          data: JSON.stringify({
-            auctionId: bid.auctionId,
-            auctionTitle: auction.title,
-            newBidAmount: bid.amount,
-            action: "view_auction",
-          }),
-        });
+        // Only notify previous bidder if they're not admin
+        const bidder = await this.getUser(previousBidder.bidderId);
+        if (bidder && bidder.role !== "admin") {
+          await this.createNotification({
+            userId: previousBidder.bidderId,
+            type: "bid",
+            title: "Penawaran Terlampaui",
+            message: `Penawaran Anda untuk ${auction.title} telah dilampaui oleh pengguna lain`,
+            data: JSON.stringify({
+              auctionId: bid.auctionId,
+              auctionTitle: auction.title,
+              newBidAmount: bid.amount,
+              action: "view_auction",
+            }),
+          });
+        }
       }
     }
 
@@ -747,19 +760,22 @@ export class DatabaseStorage implements IStorage {
             );
           }
 
-          // Notify user about payment resubmission
-          await this.createNotification({
-            userId: payment.winnerId,
-            type: "payment",
-            title: "Pembayaran Ulang Berhasil Dikirim",
-            message: `Pembayaran ulang Anda untuk lelang "${auction.title}" telah diterima dan sedang diverifikasi oleh admin.`,
-            data: JSON.stringify({
-              auctionId: payment.auctionId,
-              auctionTitle: auction.title,
-              amount: payment.amount,
-              paymentId: updatedPayment.id,
-            }),
-          });
+          // Only notify user about payment resubmission if they're not admin
+          const winner = await this.getUser(payment.winnerId);
+          if (winner && winner.role !== "admin") {
+            await this.createNotification({
+              userId: payment.winnerId,
+              type: "payment",
+              title: "Pembayaran Ulang Berhasil Dikirim",
+              message: `Pembayaran ulang Anda untuk lelang "${auction.title}" telah diterima dan sedang diverifikasi oleh admin.`,
+              data: JSON.stringify({
+                auctionId: payment.auctionId,
+                auctionTitle: auction.title,
+                amount: payment.amount,
+                paymentId: updatedPayment.id,
+              }),
+            });
+          }
         }
 
         console.log("Payment resubmitted successfully:", updatedPayment);
@@ -791,19 +807,22 @@ export class DatabaseStorage implements IStorage {
           }
         );
 
-        // Notify user about payment submission
-        await this.createNotification({
-          userId: payment.winnerId,
-          type: "payment",
-          title: "Pembayaran Berhasil Dikirim",
-          message: `Pembayaran Anda untuk lelang "${auction.title}" telah diterima dan sedang diverifikasi oleh admin.`,
-          data: JSON.stringify({
-            auctionId: payment.auctionId,
-            auctionTitle: auction.title,
-            amount: payment.amount,
-            paymentId: newPayment.id,
-          }),
-        });
+        // Only notify user about payment submission if they're not admin
+        const winner = await this.getUser(payment.winnerId);
+        if (winner && winner.role !== "admin") {
+          await this.createNotification({
+            userId: payment.winnerId,
+            type: "payment",
+            title: "Pembayaran Berhasil Dikirim",
+            message: `Pembayaran Anda untuk lelang "${auction.title}" telah diterima dan sedang diverifikasi oleh admin.`,
+            data: JSON.stringify({
+              auctionId: payment.auctionId,
+              auctionTitle: auction.title,
+              amount: payment.amount,
+              paymentId: newPayment.id,
+            }),
+          });
+        }
       }
 
       console.log("Payment created successfully:", newPayment);
@@ -880,23 +899,26 @@ export class DatabaseStorage implements IStorage {
       const auction = await this.getAuction(updatedPayment.auctionId);
 
       if (auction && updatedPayment.winnerId) {
-        // Create user notification about payment status (not admin notification)
-        await this.createNotification({
-          userId: updatedPayment.winnerId,
-          type: "payment",
-          title: status === "verified" ? "Pembayaran Disetujui" : "Pembayaran Ditolak",
-          message: status === "verified" 
-            ? `Pembayaran Anda untuk lelang "${auction.title}" telah disetujui.`
-            : `Pembayaran Anda untuk lelang "${auction.title}" ditolak. ${notes || ''}`,
-          data: JSON.stringify({
-            paymentId: paymentId,
-            auctionId: updatedPayment.auctionId,
-            auctionTitle: auction.title,
-            status: status,
-            notes: notes,
-            action: "view_payment"
-          }),
-        });
+        // Only create user notification about payment status if they're not admin
+        const winner = await this.getUser(updatedPayment.winnerId);
+        if (winner && winner.role !== "admin") {
+          await this.createNotification({
+            userId: updatedPayment.winnerId,
+            type: "payment",
+            title: status === "verified" ? "Pembayaran Disetujui" : "Pembayaran Ditolak",
+            message: status === "verified" 
+              ? `Pembayaran Anda untuk lelang "${auction.title}" telah disetujui.`
+              : `Pembayaran Anda untuk lelang "${auction.title}" ditolak. ${notes || ''}`,
+            data: JSON.stringify({
+              paymentId: paymentId,
+              auctionId: updatedPayment.auctionId,
+              auctionTitle: auction.title,
+              status: status,
+              notes: notes,
+              action: "view_payment"
+            }),
+          });
+        }
       }
 
       console.log(`[Storage] Payment verification successful:`, updatedPayment);
