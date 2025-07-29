@@ -19,6 +19,11 @@ export default function HomePage() {
     queryKey: ["/api/auctions"],
   });
 
+  // Check if we're filtering by active status from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const isActiveFilter = urlParams.get('status') === 'active';
+  
+  // Fetch active auctions only when filtering by active status
   const { data: activeAuctions = [], isLoading: activeAuctionsLoading } = useQuery<AuctionWithDetails[]>({
     queryKey: ["/api/auctions", { status: "active" }],
     queryFn: async () => {
@@ -26,13 +31,18 @@ export default function HomePage() {
       if (!res.ok) throw new Error("Failed to fetch active auctions");
       return res.json();
     },
+    enabled: isActiveFilter, // Only fetch when filtering by active
   });
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
 
-  const filteredAuctions = activeAuctions.filter(auction => {
+  // Use activeAuctions when filtering by active, otherwise use all auctions
+  const auctionsToDisplay = isActiveFilter ? activeAuctions : auctions;
+  const isLoadingAuctions = isActiveFilter ? activeAuctionsLoading : auctionsLoading;
+
+  const filteredAuctions = auctionsToDisplay.filter(auction => {
     const matchesCategory = selectedCategory === "all" || auction.categoryId === parseInt(selectedCategory);
     const matchesSearch = !searchQuery || 
       auction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -93,7 +103,7 @@ export default function HomePage() {
                       </CardContent>
                     </Card>
                     <div className="text-center">
-                      <span className="text-accent font-semibold">🔥 Trending: {activeAuctions.length} lelang aktif hari ini</span>
+                      <span className="text-accent font-semibold">🔥 Trending: {auctionsToDisplay.length} lelang {isActiveFilter ? 'aktif' : 'tersedia'} hari ini</span>
                     </div>
                   </div>
                 </CardContent>
@@ -148,7 +158,7 @@ export default function HomePage() {
           </div>
 
           {/* Auction Grid */}
-          {activeAuctionsLoading ? (
+          {isLoadingAuctions ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <Card key={i} className="auction-card animate-pulse">

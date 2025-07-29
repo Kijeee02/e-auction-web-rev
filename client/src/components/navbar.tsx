@@ -484,12 +484,14 @@ export default function Navbar() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem asChild>
-                      <Link href="/dashboard" className="flex items-center cursor-pointer">
-                        <User className="h-4 w-4 mr-2" />
-                        Dashboard
-                      </Link>
-                    </DropdownMenuItem>
+                    {user.role !== "admin" && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/dashboard" className="flex items-center cursor-pointer">
+                          <User className="h-4 w-4 mr-2" />
+                          Dashboard
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
                     {user.role === "admin" && (
                       <DropdownMenuItem asChild>
                         <Link href="/admin" className="flex items-center cursor-pointer">
