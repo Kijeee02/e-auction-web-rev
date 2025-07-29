@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -12,27 +11,15 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, Bell, ChevronDown, User, Settings, LogOut, Gavel, Shield, X } from "lucide-react";
+import { Bell, ChevronDown, User, Settings, LogOut, Gavel, Shield } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Notification, Category } from "@shared/schema";
+import { Notification } from "@shared/schema";
 
 export default function Navbar() {
   const [location, setLocation] = useLocation();
   const { user, logoutMutation } = useAuth();
-  const [searchQuery, setSearchQuery] = useState("");
   const [notificationOpen, setNotificationOpen] = useState(false);
   const queryClient = useQueryClient();
-
-  // Get categories for navigation
-  const { data: categories = [] } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
-    queryFn: async () => {
-      const res = await fetch("/api/categories");
-      if (!res.ok) throw new Error("Failed to fetch categories");
-      return res.json();
-    },
-  });
 
   // Get notifications based on user role
   const notificationEndpoint = user?.role === "admin" ? "/api/admin/notifications" : "/api/notifications";
@@ -87,16 +74,6 @@ export default function Navbar() {
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      // Clear search query after navigation
-      const query = searchQuery.trim();
-      setSearchQuery("");
-      setLocation(`/?search=${encodeURIComponent(query)}`);
-    }
-  };
-
   const handleLogout = async () => {
     try {
       await logoutMutation.mutateAsync();
@@ -135,37 +112,6 @@ export default function Navbar() {
                   Beranda
                 </Button>
               </Link>
-              <Link href="/?status=active">
-                <Button 
-                  variant="ghost" 
-                  className={`text-sm font-medium ${location.includes('status=active') ? 'text-primary' : 'text-gray-600 hover:text-primary'}`}
-                >
-                  Lelang Aktif
-                </Button>
-              </Link>
-              
-              {/* Categories Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="text-gray-600 hover:text-primary text-sm font-medium">
-                    Kategori <ChevronDown className="h-4 w-4 ml-1" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48">
-                  <DropdownMenuItem asChild>
-                    <Link href="/" className="cursor-pointer">
-                      Semua Kategori
-                    </Link>
-                  </DropdownMenuItem>
-                  {categories.map((category) => (
-                    <DropdownMenuItem key={category.id} asChild>
-                      <Link href={`/?categoryId=${category.id}`} className="cursor-pointer">
-                        {category.name}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
 
               {/* How It Works Dropdown */}
               <DropdownMenu>
@@ -225,22 +171,6 @@ export default function Navbar() {
                     🏠 Beranda
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/?status=active" className="cursor-pointer">
-                    🔥 Lelang Aktif
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem disabled className="text-gray-900 font-medium">
-                  📂 Kategori
-                </DropdownMenuItem>
-                {categories.map((category) => (
-                  <DropdownMenuItem key={category.id} asChild>
-                    <Link href={`/?categoryId=${category.id}`} className="cursor-pointer ml-4">
-                      {category.name}
-                    </Link>
-                  </DropdownMenuItem>
-                ))}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem disabled className="text-gray-900 font-medium">
                   ❓ Cara Kerja
@@ -252,44 +182,8 @@ export default function Navbar() {
             </DropdownMenu>
           </div>
 
-          {/* Search and User Actions */}
+          {/* User Actions */}
           <div className="flex items-center space-x-4">
-            {/* Search Bar - Desktop */}
-            <div className="hidden md:block">
-              <form onSubmit={handleSearch} className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  type="search"
-                  placeholder="Cari lelang..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </form>
-            </div>
-
-            {/* Search Bar - Mobile */}
-            <div className="md:hidden">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm">
-                    <Search className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72 p-3">
-                  <form onSubmit={handleSearch} className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                    <Input
-                      type="search"
-                      placeholder="Cari lelang..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </form>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
 
             {user ? (
               // Authenticated User Menu

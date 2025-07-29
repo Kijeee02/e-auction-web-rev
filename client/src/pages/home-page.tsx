@@ -13,41 +13,34 @@ import { Search, Gavel, Shield, Zap, Users } from "lucide-react";
 export default function HomePage() {
   const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedLocation, setSelectedLocation] = useState<string>("all");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedCondition, setSelectedCondition] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: auctions = [], isLoading: auctionsLoading } = useQuery<AuctionWithDetails[]>({
     queryKey: ["/api/auctions"],
   });
 
-  // Check if we're filtering by active status from URL
-  const urlParams = new URLSearchParams(window.location.search);
-  const isActiveFilter = urlParams.get('status') === 'active';
   
-  // Fetch active auctions only when filtering by active status
-  const { data: activeAuctions = [], isLoading: activeAuctionsLoading } = useQuery<AuctionWithDetails[]>({
-    queryKey: ["/api/auctions", { status: "active" }],
-    queryFn: async () => {
-      const res = await fetch("/api/auctions?status=active");
-      if (!res.ok) throw new Error("Failed to fetch active auctions");
-      return res.json();
-    },
-    enabled: isActiveFilter, // Only fetch when filtering by active
-  });
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
 
-  // Use activeAuctions when filtering by active, otherwise use all auctions
-  const auctionsToDisplay = isActiveFilter ? activeAuctions : auctions;
-  const isLoadingAuctions = isActiveFilter ? activeAuctionsLoading : auctionsLoading;
+  // Use all auctions (remove active filter dependency from URL)
+  const auctionsToDisplay = auctions;
+  const isLoadingAuctions = auctionsLoading;
 
   const filteredAuctions = auctionsToDisplay.filter(auction => {
     const matchesCategory = selectedCategory === "all" || auction.categoryId === parseInt(selectedCategory);
+    const matchesLocation = selectedLocation === "all" || auction.location.toLowerCase().includes(selectedLocation.toLowerCase());
+    const matchesStatus = selectedStatus === "all" || auction.status === selectedStatus;
+    const matchesCondition = selectedCondition === "all" || auction.condition === selectedCondition;
     const matchesSearch = !searchQuery || 
       auction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       auction.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesLocation && matchesStatus && matchesCondition && matchesSearch;
   });
 
   const featuredAuctions = filteredAuctions.slice(0, 6);
@@ -103,7 +96,7 @@ export default function HomePage() {
                       </CardContent>
                     </Card>
                     <div className="text-center">
-                      <span className="text-accent font-semibold">🔥 Trending: {auctionsToDisplay.length} lelang {isActiveFilter ? 'aktif' : 'tersedia'} hari ini</span>
+                      <span className="text-accent font-semibold">🔥 Trending: {filteredAuctions.length} lelang tersedia hari ini</span>
                     </div>
                   </div>
                 </CardContent>
@@ -121,8 +114,9 @@ export default function HomePage() {
             <p className="text-lg text-gray-600">Temukan produk berkualitas dengan penawaran terbaik</p>
           </div>
 
-          {/* Search and Filter */}
-          <div className="mb-8 space-y-4">
+          {/* Search and Comprehensive Filter */}
+          <div className="mb-8 space-y-6">
+            {/* Search Bar */}
             <div className="flex flex-col md:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -135,26 +129,95 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Category Filter */}
-            <div className="flex flex-wrap gap-2">
-              <Badge
-                variant={selectedCategory === "all" ? "default" : "secondary"}
-                className="cursor-pointer"
-                onClick={() => setSelectedCategory("all")}
-              >
-                Semua
-              </Badge>
-              {categories.map((category) => (
-                <Badge
-                  key={category.id}
-                  variant={selectedCategory === category.id.toString() ? "default" : "secondary"}
-                  className="cursor-pointer"
-                  onClick={() => setSelectedCategory(category.id.toString())}
+            {/* Filter Section */}
+            <Card className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Category Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Kategori</label>
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="all">Semua Kategori</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id.toString()}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Location Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Lokasi</label>
+                  <select
+                    value={selectedLocation}
+                    onChange={(e) => setSelectedLocation(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="all">Semua Lokasi</option>
+                    <option value="jakarta">Jakarta</option>
+                    <option value="bogor">Bogor</option>
+                    <option value="depok">Depok</option>
+                    <option value="tangerang">Tangerang</option>
+                    <option value="bekasi">Bekasi</option>
+                  </select>
+                </div>
+
+                {/* Status Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Status</label>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="all">Semua Status</option>
+                    <option value="active">Aktif</option>
+                    <option value="ended">Berakhir</option>
+                    <option value="cancelled">Dibatalkan</option>
+                  </select>
+                </div>
+
+                {/* Condition Filter */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Kondisi</label>
+                  <select
+                    value={selectedCondition}
+                    onChange={(e) => setSelectedCondition(e.target.value)}
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
+                  >
+                    <option value="all">Semua Kondisi</option>
+                    <option value="new">Baru</option>
+                    <option value="like_new">Seperti Baru</option>
+                    <option value="good">Baik</option>
+                    <option value="fair">Cukup</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Reset Filters Button */}
+              <div className="mt-4 flex justify-between items-center">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedCategory("all");
+                    setSelectedLocation("all");
+                    setSelectedStatus("all");
+                    setSelectedCondition("all");
+                    setSearchQuery("");
+                  }}
+                  className="text-sm"
                 >
-                  {category.name}
-                </Badge>
-              ))}
-            </div>
+                  Reset Filter
+                </Button>
+                <div className="text-sm text-gray-600">
+                  Menampilkan {filteredAuctions.length} dari {auctionsToDisplay.length} lelang
+                </div>
+              </div>
+            </Card>
           </div>
 
           {/* Auction Grid */}
