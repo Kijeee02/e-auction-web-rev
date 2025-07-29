@@ -80,7 +80,10 @@ export default function Navbar() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      setLocation(`/?search=${encodeURIComponent(searchQuery)}`);
+      // Clear search query after navigation
+      const query = searchQuery.trim();
+      setSearchQuery("");
+      setLocation(`/?search=${encodeURIComponent(query)}`);
     }
   };
 
@@ -123,22 +126,141 @@ export default function Navbar() {
                 </Button>
               </Link>
               <Link href="/?status=active">
-                <Button variant="ghost" className="text-gray-600 hover:text-primary text-sm font-medium">
+                <Button 
+                  variant="ghost" 
+                  className={`text-sm font-medium ${location.includes('status=active') ? 'text-primary' : 'text-gray-600 hover:text-primary'}`}
+                >
                   Lelang Aktif
                 </Button>
               </Link>
-              <Button variant="ghost" className="text-gray-600 hover:text-primary text-sm font-medium">
-                Kategori
-              </Button>
-              <Button variant="ghost" className="text-gray-600 hover:text-primary text-sm font-medium">
-                Cara Kerja
-              </Button>
+              
+              {/* Categories Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="text-gray-600 hover:text-primary text-sm font-medium">
+                    Kategori <ChevronDown className="h-4 w-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link href="/" className="cursor-pointer">
+                      Semua Kategori
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/?categoryId=19" className="cursor-pointer">
+                      Motor
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/?categoryId=20" className="cursor-pointer">
+                      Mobil
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/?categoryId=21" className="cursor-pointer">
+                      Elektronik
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* How It Works Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="text-gray-600 hover:text-primary text-sm font-medium">
+                    Cara Kerja <ChevronDown className="h-4 w-4 ml-1" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64">
+                  <DropdownMenuItem disabled className="text-gray-900 font-medium">
+                    📋 Cara Mengikuti Lelang
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled className="text-xs text-gray-600 px-3 py-2">
+                    1. Daftar & login ke akun Anda
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled className="text-xs text-gray-600 px-3 py-2">
+                    2. Pilih lelang yang diminati
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled className="text-xs text-gray-600 px-3 py-2">
+                    3. Berikan penawaran tertinggi
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled className="text-xs text-gray-600 px-3 py-2">
+                    4. Menangkan lelang & lakukan pembayaran
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled className="text-gray-900 font-medium">
+                    ⚠️ Syarat & Ketentuan
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled className="text-xs text-gray-600 px-3 py-2">
+                    • Pemenang wajib melakukan pembayaran
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled className="text-xs text-gray-600 px-3 py-2">
+                    • Verifikasi admin diperlukan
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled className="text-xs text-gray-600 px-3 py-2">
+                    • Lokasi pengambilan: Jabodetabek
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <div className="md:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm">
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem asChild>
+                  <Link href="/" className="cursor-pointer">
+                    🏠 Beranda
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/?status=active" className="cursor-pointer">
+                    🔥 Lelang Aktif
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled className="text-gray-900 font-medium">
+                  📂 Kategori
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/?categoryId=19" className="cursor-pointer ml-4">
+                    🏍️ Motor
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/?categoryId=20" className="cursor-pointer ml-4">
+                    🚗 Mobil
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/?categoryId=21" className="cursor-pointer ml-4">
+                    📱 Elektronik
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem disabled className="text-gray-900 font-medium">
+                  ❓ Cara Kerja
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled className="text-xs text-gray-600 ml-4">
+                  1. Daftar & Login → 2. Pilih Lelang → 3. Bid → 4. Menang & Bayar
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
 
           {/* Search and User Actions */}
           <div className="flex items-center space-x-4">
-            {/* Search Bar */}
+            {/* Search Bar - Desktop */}
             <div className="hidden md:block">
               <form onSubmit={handleSearch} className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -150,6 +272,29 @@ export default function Navbar() {
                   className="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 />
               </form>
+            </div>
+
+            {/* Search Bar - Mobile */}
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm">
+                    <Search className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72 p-3">
+                  <form onSubmit={handleSearch} className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      type="search"
+                      placeholder="Cari lelang..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                    />
+                  </form>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
 
             {user ? (
