@@ -9,9 +9,10 @@ import VehicleInfoModal from "./vehicle-info-modal";
 
 interface AuctionCardProps {
   auction: AuctionWithDetails;
+  viewMode?: "grid" | "list";
 }
 
-export default function AuctionCard({ auction }: AuctionCardProps) {
+export default function AuctionCard({ auction, viewMode = "grid" }: AuctionCardProps) {
   const currentPrice = Number(auction.currentPrice) || 0;
   const startingPrice = Number(auction.startingPrice) || 0;
   const bidCount = auction._count?.bids || 0;
@@ -22,6 +23,83 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
 
   // Show "Berakhir" status if auction has expired, regardless of database status
   const displayStatus = hasExpired && auction.status === "active" ? "ended" : auction.status;
+
+  if (viewMode === "list") {
+    return (
+      <Card className="auction-card">
+        <CardContent className="p-6">
+          <div className="flex gap-6">
+            {/* Image */}
+            <div className="relative flex-shrink-0">
+              <img
+                src={
+                  Array.isArray(auction.imageUrls)
+                    ? (auction.imageUrls[0] || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop")
+                    : (auction.imageUrls || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop")
+                }
+                alt={auction.title}
+                className="w-32 h-24 object-cover rounded-lg"
+              />
+              <div className="absolute top-2 right-2">
+                <Badge className={`status-${auction.status} text-xs`}>
+                  {auction.status === "active" ? "Aktif" : auction.status === "ended" ? "Berakhir" : "Dibatalkan"}
+                </Badge>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="text-lg font-semibold text-gray-900 line-clamp-1">
+                  {auction.title}
+                </h3>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-primary">
+                    Rp {currentPrice.toLocaleString('id-ID')}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    dari Rp {startingPrice.toLocaleString('id-ID')}
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                {auction.description}
+              </p>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <span className="flex items-center">
+                    <Users className="h-4 w-4 mr-1" />
+                    {bidCount} penawaran
+                  </span>
+                  <span className="flex items-center">
+                    <MapPin className="h-4 w-4 mr-1" />
+                    {auction.location}
+                  </span>
+                  {isActive && (
+                    <span className="flex items-center">
+                      <Clock className="h-4 w-4 mr-1" />
+                      <CountdownTimer endTime={auction.endTime.toString()} compact />
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <VehicleInfoModal auction={auction} />
+                  <Link href={`/auction/${auction.id}`}>
+                    <Button size="sm" className="bg-primary text-white hover:bg-blue-700">
+                      {isActive ? "Ikut Lelang" : "Lihat Detail"}
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="auction-card">

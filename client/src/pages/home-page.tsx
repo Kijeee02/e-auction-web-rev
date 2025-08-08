@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { AuctionWithDetails, Category } from "@shared/schema";
 import { useAuth } from "@/hooks/use-auth";
 import Navbar from "@/components/navbar";
@@ -12,17 +13,13 @@ import { Search, Gavel, Shield, Zap, Users } from "lucide-react";
 
 export default function HomePage() {
   const { user } = useAuth();
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedLocation, setSelectedLocation] = useState<string>("all");
-  const [selectedStatus, setSelectedStatus] = useState<string>("all");
-  const [selectedCondition, setSelectedCondition] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: auctions = [], isLoading: auctionsLoading } = useQuery<AuctionWithDetails[]>({
     queryKey: ["/api/auctions"],
   });
 
-  
+
 
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
@@ -32,18 +29,38 @@ export default function HomePage() {
   const auctionsToDisplay = auctions;
   const isLoadingAuctions = auctionsLoading;
 
-  const filteredAuctions = auctionsToDisplay.filter(auction => {
-    const matchesCategory = selectedCategory === "all" || auction.categoryId === parseInt(selectedCategory);
-    const matchesLocation = selectedLocation === "all" || auction.location.toLowerCase().includes(selectedLocation.toLowerCase());
-    const matchesStatus = selectedStatus === "all" || auction.status === selectedStatus;
-    const matchesCondition = selectedCondition === "all" || auction.condition === selectedCondition;
-    const matchesSearch = !searchQuery || 
-      auction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      auction.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesLocation && matchesStatus && matchesCondition && matchesSearch;
-  });
+  // Featured auctions: hanya tampilkan produk yang aktif dan masih berjalan
+  const featuredAuctions = auctionsToDisplay.filter(auction => {
+    const now = new Date();
+    const endTime = new Date(auction.endTime);
 
-  const featuredAuctions = filteredAuctions.slice(0, 6);
+    // Kondisi untuk featured: status aktif, belum berakhir, dan belum diarsipkan
+    return auction.status === "active" &&
+      endTime > now &&
+      !auction.archived;
+  })
+    .sort((a, b) => {
+      // Prioritaskan berdasarkan jumlah bid (popularitas)
+      const aBidCount = a._count?.bids || a.bids?.length || 0;
+      const bBidCount = b._count?.bids || b.bids?.length || 0;
+
+      if (aBidCount !== bBidCount) {
+        return bBidCount - aBidCount; // Lebih banyak bid = lebih prioritas
+      }
+
+      // Jika jumlah bid sama, prioritaskan yang lebih baru dibuat
+      const aStartTime = new Date(a.startTime).getTime();
+      const bStartTime = new Date(b.startTime).getTime();
+      return bStartTime - aStartTime; // Lebih baru = lebih prioritas
+    })
+    .slice(0, 4); // Ambil maksimal 4 produk featured untuk beranda
+
+  // Filter for search on featured auctions
+  const filteredFeaturedAuctions = featuredAuctions.filter(auction => {
+    if (!searchQuery) return true;
+    return auction.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      auction.description.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -74,29 +91,91 @@ export default function HomePage() {
               <Card className="bg-white/10 backdrop-blur border-white/20">
                 <CardContent className="p-8">
                   <div className="space-y-6">
-                    <Card className="bg-white shadow-lg">
-                      <CardContent className="p-4">
-                        <div className="flex items-center space-x-3 mb-3">
-                          <div className="w-16 h-16 bg-gray-200 rounded-lg"></div>
-                          <div>
-                            <h4 className="text-gray-900 font-semibold">iPhone 14 Pro Max</h4>
-                            <p className="text-gray-600 text-sm">Kondisi: Sangat Baik</p>
+                    {featuredAuctions.length > 0 ? (
+                      <Card className="bg-white shadow-lg">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3 mb-3">
+                            <div className="w-16 h-16 bg-gray-200 rounded-lg overflow-hidden">
+                              {featuredAuctions[0].imageUrls.length > 0 ? (
+                                <img
+                                  src={featuredAuctions[0].imageUrls[0]}
+                                  alt={featuredAuctions[0].title}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gray-300 flex items-center justify-center">
+                                  <Gavel className="w-6 h-6 text-gray-500" />
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="text-gray-900 font-semibold line-clamp-1">{featuredAuctions[0].title}</h4>
+                              <p className="text-gray-600 text-sm">Kondisi: {
+                                featuredAuctions[0].condition === 'new' ? 'Baru' :
+                                  featuredAuctions[0].condition === 'like_new' ? 'Seperti Baru' :
+                                    featuredAuctions[0].condition === 'good' ? 'Baik' : 'Cukup Baik'
+                              }</p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="text-gray-600 text-sm">Penawaran Tertinggi</p>
-                            <p className="text-2xl font-bold text-primary">Rp 12.500.000</p>
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-gray-600 text-sm">Penawaran Tertinggi</p>
+                              <p className="text-2xl font-bold text-primary">
+                                Rp {featuredAuctions[0].currentPrice.toLocaleString('id-ID')}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-gray-600 text-sm">Berakhir dalam</p>
+                              <p className="text-lg font-bold text-destructive">
+                                {(() => {
+                                  const now = new Date();
+                                  const endTime = new Date(featuredAuctions[0].endTime);
+                                  const timeDiff = endTime.getTime() - now.getTime();
+
+                                  if (timeDiff <= 0) return "Berakhir";
+
+                                  const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+                                  const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                                  const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+
+                                  if (days > 0) return `${days}h ${hours}j`;
+                                  if (hours > 0) return `${hours}j ${minutes}m`;
+                                  return `${minutes}m`;
+                                })()}
+                              </p>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-gray-600 text-sm">Berakhir dalam</p>
-                            <p className="text-lg font-bold text-destructive">02:14:35</p>
+                        </CardContent>
+                      </Card>
+                    ) : (
+                      <Card className="bg-white shadow-lg">
+                        <CardContent className="p-4">
+                          <div className="flex items-center space-x-3 mb-3">
+                            <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center">
+                              <Gavel className="w-6 h-6 text-gray-500" />
+                            </div>
+                            <div>
+                              <h4 className="text-gray-900 font-semibold">Belum Ada Lelang Aktif</h4>
+                              <p className="text-gray-600 text-sm">Nantikan lelang terbaru</p>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-gray-600 text-sm">Status</p>
+                              <p className="text-xl font-bold text-gray-500">Menunggu</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-gray-600 text-sm">Info</p>
+                              <p className="text-sm text-gray-500">Segera Hadir</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
                     <div className="text-center">
-                      <span className="text-accent font-semibold">🔥 Trending: {filteredAuctions.length} lelang tersedia hari ini</span>
+                      <span className="text-accent font-semibold">
+                        🔥 {featuredAuctions.length > 0 ? `${featuredAuctions.length} lelang aktif` : 'Nantikan lelang'} tersedia hari ini
+                      </span>
                     </div>
                   </div>
                 </CardContent>
@@ -110,120 +189,43 @@ export default function HomePage() {
       <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Lelang Populer</h2>
-            <p className="text-lg text-gray-600">Temukan produk berkualitas dengan penawaran terbaik</p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Lelang Aktif Terpopuler</h2>
+            <p className="text-lg text-gray-600">Produk berkualitas yang sedang berlangsung dengan penawaran terbaik</p>
+            <div className="flex justify-center items-center mt-3">
+              <Badge variant="secondary" className="text-green-700 bg-green-100">
+                <Zap className="w-4 h-4 mr-1" />
+                Sedang Berlangsung
+              </Badge>
+            </div>
           </div>
 
-          {/* Search and Comprehensive Filter */}
-          <div className="mb-8 space-y-6">
-            {/* Search Bar */}
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="relative flex-1">
+          {/* Quick Search */}
+          <div className="mb-8">
+            <div className="max-w-xl mx-auto">
+              <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Cari lelang..."
+                  placeholder="Cari lelang cepat..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
+              {searchQuery && (
+                <p className="text-sm text-gray-600 mt-2 text-center">
+                  Menampilkan hasil untuk "{searchQuery}" -
+                  <Link href="/auctions" className="text-primary hover:underline ml-1">
+                    Lihat semua hasil
+                  </Link>
+                </p>
+              )}
             </div>
-
-            {/* Filter Section */}
-            <Card className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Category Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Kategori</label>
-                  <select
-                    value={selectedCategory}
-                    onChange={(e) => setSelectedCategory(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="all">Semua Kategori</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id.toString()}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Location Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Lokasi</label>
-                  <select
-                    value={selectedLocation}
-                    onChange={(e) => setSelectedLocation(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="all">Semua Lokasi</option>
-                    <option value="jakarta">Jakarta</option>
-                    <option value="bogor">Bogor</option>
-                    <option value="depok">Depok</option>
-                    <option value="tangerang">Tangerang</option>
-                    <option value="bekasi">Bekasi</option>
-                  </select>
-                </div>
-
-                {/* Status Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Status</label>
-                  <select
-                    value={selectedStatus}
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="all">Semua Status</option>
-                    <option value="active">Aktif</option>
-                    <option value="ended">Berakhir</option>
-                    <option value="cancelled">Dibatalkan</option>
-                  </select>
-                </div>
-
-                {/* Condition Filter */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-gray-700">Kondisi</label>
-                  <select
-                    value={selectedCondition}
-                    onChange={(e) => setSelectedCondition(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
-                  >
-                    <option value="all">Semua Kondisi</option>
-                    <option value="new">Baru</option>
-                    <option value="like_new">Seperti Baru</option>
-                    <option value="good">Baik</option>
-                    <option value="fair">Cukup</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Reset Filters Button */}
-              <div className="mt-4 flex justify-between items-center">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSelectedCategory("all");
-                    setSelectedLocation("all");
-                    setSelectedStatus("all");
-                    setSelectedCondition("all");
-                    setSearchQuery("");
-                  }}
-                  className="text-sm"
-                >
-                  Reset Filter
-                </Button>
-                <div className="text-sm text-gray-600">
-                  Menampilkan {filteredAuctions.length} dari {auctionsToDisplay.length} lelang
-                </div>
-              </div>
-            </Card>
           </div>
 
           {/* Auction Grid */}
           {isLoadingAuctions ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
+              {[1, 2, 3, 4].map((i) => (
                 <Card key={i} className="auction-card animate-pulse">
                   <div className="h-48 bg-gray-200"></div>
                   <CardContent className="p-6">
@@ -236,24 +238,32 @@ export default function HomePage() {
                 </Card>
               ))}
             </div>
-          ) : featuredAuctions.length === 0 ? (
+          ) : filteredFeaturedAuctions.length === 0 && !searchQuery ? (
             <div className="text-center py-12">
               <Gavel className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada lelang ditemukan</h3>
-              <p className="text-gray-600">Coba ubah filter atau kata kunci pencarian Anda.</p>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ada lelang aktif saat ini</h3>
+              <p className="text-gray-600">Belum ada produk yang sedang dilelang. Silakan cek kembali nanti.</p>
+            </div>
+          ) : filteredFeaturedAuctions.length === 0 && searchQuery ? (
+            <div className="text-center py-12">
+              <Gavel className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Tidak ditemukan hasil untuk "{searchQuery}"</h3>
+              <p className="text-gray-600">Coba gunakan kata kunci lain atau lihat semua lelang tersedia.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {featuredAuctions.map((auction) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {filteredFeaturedAuctions.map((auction) => (
                 <AuctionCard key={auction.id} auction={auction} />
               ))}
             </div>
           )}
 
           <div className="text-center mt-12">
-            <Button size="lg" className="bg-accent text-gray-900 hover:bg-yellow-500">
-              Lihat Semua Lelang
-            </Button>
+            <Link href="/auctions">
+              <Button size="lg" className="bg-accent text-gray-900 hover:bg-yellow-500">
+                Lihat Semua Lelang
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

@@ -113,6 +113,15 @@ export default function Navbar() {
                 </Button>
               </Link>
 
+              <Link href="/auctions">
+                <Button
+                  variant="ghost"
+                  className={`text-sm font-medium ${location === '/auctions' ? 'text-primary' : 'text-gray-600 hover:text-primary'}`}
+                >
+                  Semua Lelang
+                </Button>
+              </Link>
+
               {/* How It Works Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -169,6 +178,11 @@ export default function Navbar() {
                 <DropdownMenuItem asChild>
                   <Link href="/" className="cursor-pointer">
                     🏠 Beranda
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/auctions" className="cursor-pointer">
+                    🔨 Semua Lelang
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

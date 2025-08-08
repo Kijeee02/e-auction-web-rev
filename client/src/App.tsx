@@ -8,6 +8,7 @@ import { ProtectedRoute } from "./lib/protected-route";
 import { AdminRoute } from "./lib/admin-route";
 import AdminUsersPage from "@/pages/admin-users-page";
 import HomePage from "@/pages/home-page";
+import AuctionsPage from "@/pages/auctions-page";
 import AuthPage from "@/pages/auth-page";
 import AuctionDetail from "@/pages/auction-detail";
 import UserDashboard from "@/pages/user-dashboard";
@@ -21,6 +22,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/auth" component={AuthPage} />
+      <Route path="/auctions" component={AuctionsPage} />
       <Route path="/auction/:id" component={AuctionDetail} />
       <AdminRoute path="/admin" component={AdminPanel} />
       <AdminRoute path="/admin/edit-auction/:id" component={EditAuctionPage} />
