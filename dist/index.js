@@ -1,9 +1,14 @@
+var __defProp = Object.defineProperty;
 var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
   get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
 }) : x)(function(x) {
   if (typeof require !== "undefined") return require.apply(this, arguments);
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
 
 // server/index.ts
 import express3 from "express";
@@ -12,6 +17,28 @@ import express3 from "express";
 import { createServer } from "http";
 
 // shared/schema.ts
+var schema_exports = {};
+__export(schema_exports, {
+  auctions: () => auctions,
+  auctionsRelations: () => auctionsRelations,
+  bids: () => bids,
+  bidsRelations: () => bidsRelations,
+  categories: () => categories,
+  categoriesRelations: () => categoriesRelations,
+  insertAuctionSchema: () => insertAuctionSchema,
+  insertBidSchema: () => insertBidSchema,
+  insertCategorySchema: () => insertCategorySchema,
+  insertNotificationSchema: () => insertNotificationSchema,
+  insertPaymentSchema: () => insertPaymentSchema,
+  insertUserSchema: () => insertUserSchema,
+  notifications: () => notifications,
+  payments: () => payments,
+  paymentsRelations: () => paymentsRelations,
+  users: () => users,
+  usersRelations: () => usersRelations,
+  watchlist: () => watchlist,
+  watchlistRelations: () => watchlistRelations
+});
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -272,11 +299,10 @@ var insertNotificationSchema = createInsertSchema(notifications);
 // server/db.ts
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
-import * as schema from "@shared/schema";
 import { resolve } from "path";
-var dbPath = resolve(process.cwd(), "auction.db");
+var dbPath = resolve(process.cwd(), "database", "auction.db");
 var sqlite = new Database(dbPath);
-var db = drizzle(sqlite, { schema });
+var db = drizzle(sqlite, { schema: schema_exports });
 function initializeDatabase() {
   try {
     sqlite.exec(`
@@ -2033,7 +2059,6 @@ function setupAuth(app2) {
 }
 
 // server/routes.ts
-import { insertAuctionSchema as insertAuctionSchema2, insertBidSchema as insertBidSchema2, insertCategorySchema as insertCategorySchema2, insertPaymentSchema as insertPaymentSchema2 } from "@shared/schema";
 import { z as z2 } from "zod";
 import express from "express";
 import * as XLSX from "xlsx";
@@ -2059,7 +2084,7 @@ function registerRoutes(app2) {
       if (req.user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
       }
-      const categoryData = insertCategorySchema2.parse(req.body);
+      const categoryData = insertCategorySchema.parse(req.body);
       const category = await storage.createCategory(categoryData);
       res.status(201).json(category);
     } catch (error) {
@@ -2143,7 +2168,7 @@ function registerRoutes(app2) {
         return res.status(403).json({ message: "Admin access required" });
       }
       console.log("[CREATE AUCTION DEBUG] Received data:", req.body);
-      const auctionData = insertAuctionSchema2.parse(req.body);
+      const auctionData = insertAuctionSchema.parse(req.body);
       console.log("[CREATE AUCTION DEBUG] Parsed data:", auctionData);
       const auction = await storage.createAuction(auctionData);
       console.log("[CREATE AUCTION DEBUG] Created auction:", auction.id);
@@ -2302,7 +2327,7 @@ function registerRoutes(app2) {
       console.log("POST /bids req.body:", req.body);
       let bidData;
       try {
-        bidData = insertBidSchema2.parse({
+        bidData = insertBidSchema.parse({
           ...req.body,
           auctionId,
           amount: Number(req.body.amount)
@@ -2812,7 +2837,7 @@ function registerRoutes(app2) {
         return res.status(401).json({ message: "Authentication required" });
       }
       console.log("Payment request body:", req.body);
-      const paymentData = insertPaymentSchema2.parse({
+      const paymentData = insertPaymentSchema.parse({
         ...req.body,
         winnerId: req.user.id
       });
