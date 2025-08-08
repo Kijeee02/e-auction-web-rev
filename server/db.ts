@@ -43,6 +43,31 @@ export function initializeDatabase() {
       console.log('✓ Added avatar column to users table');
     }
 
+    // Ensure payments table exists before checking columns
+    sqlite.exec(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        auction_id INTEGER NOT NULL REFERENCES auctions(id),
+        winner_id INTEGER NOT NULL REFERENCES users(id),
+        amount REAL NOT NULL,
+        payment_method TEXT NOT NULL,
+        payment_proof TEXT,
+        bank_name TEXT,
+        account_number TEXT,
+        account_name TEXT,
+        status TEXT NOT NULL DEFAULT 'unpaid',
+        notes TEXT,
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        verified_at INTEGER,
+        verified_by INTEGER REFERENCES users(id),
+        invoice_document TEXT,
+        release_letter_document TEXT,
+        handover_document TEXT,
+        invoice_number TEXT,
+        updated_at INTEGER
+      );
+    `);
+
     // Check and add new payment columns if they don't exist
     const paymentColumns = sqlite.prepare("PRAGMA table_info(payments)").all() as { name: string }[];
     const hasInvoiceNumber = paymentColumns.some(col => col.name === 'invoice_number');
