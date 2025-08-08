@@ -237,24 +237,28 @@ export default function Navbar() {
                     ) : (
                       <div className="max-h-64 overflow-y-auto">
                         {notifications.slice(0, 10).map((notification) => {
-                          const notificationData = notification.data ? JSON.parse(notification.data) : {};
-                          
+                          let notificationData: any = {};
+                          try {
+                            notificationData = typeof notification.data === "string" ? JSON.parse(notification.data) : {};
+                          } catch (e) {
+                            notificationData = {};
+                          }
+
                           return (
                             <div
                               key={notification.id}
-                              className={`p-3 border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
-                                !notification.isRead ? "bg-blue-50" : ""
-                              }`}
+                              className={`p-3 border-b last:border-b-0 hover:bg-gray-50 transition-colors ${!notification.isRead ? "bg-blue-50" : ""
+                                }`}
                             >
                               <div className="flex items-start justify-between">
-                                <div 
+                                <div
                                   className="flex-1 cursor-pointer"
                                   onClick={() => {
                                     // Mark as read
                                     if (!notification.isRead) {
                                       markAsReadMutation.mutate(notification.id);
                                     }
-                                    
+
                                     // Handle navigation based on notification type and user role
                                     if (user?.role === "admin") {
                                       // Admin navigation - only handle payment notifications
@@ -289,9 +293,8 @@ export default function Navbar() {
                                   }}
                                 >
                                   <div className="flex items-center space-x-2">
-                                    <h4 className={`text-sm font-medium ${
-                                      !notification.isRead ? "text-blue-900" : "text-gray-900"
-                                    }`}>
+                                    <h4 className={`text-sm font-medium ${!notification.isRead ? "text-blue-900" : "text-gray-900"
+                                      }`}>
                                       {notification.title}
                                     </h4>
                                     {!notification.isRead && (
@@ -302,10 +305,10 @@ export default function Navbar() {
                                     {notification.message}
                                   </p>
                                   <p className="text-xs text-gray-400 mt-1">
-                                    {new Date(notification.createdAt).toLocaleString("id-ID", {
+                                    {notification.createdAt ? new Date(notification.createdAt).toLocaleString("id-ID", {
                                       dateStyle: "short",
                                       timeStyle: "short",
-                                    })}
+                                    }) : "Tidak diketahui"}
                                   </p>
                                   {(notificationData.auctionId || notification.type === "payment" || notification.type === "bid" || notification.type === "auction") && (
                                     <p className="text-xs text-blue-600 mt-1 font-medium">
@@ -363,9 +366,9 @@ export default function Navbar() {
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="flex items-center space-x-2 text-gray-700 hover:text-primary">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage 
-                          src={user.avatar || undefined} 
-                          alt={`${user.firstName} ${user.lastName}`} 
+                        <AvatarImage
+                          src={user.avatar || undefined}
+                          alt={`${user.firstName} ${user.lastName}`}
                         />
                         <AvatarFallback className="bg-primary text-white">
                           {user.firstName?.[0]?.toUpperCase()}{user.lastName?.[0]?.toUpperCase()}

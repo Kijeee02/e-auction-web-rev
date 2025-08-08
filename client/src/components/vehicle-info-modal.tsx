@@ -13,16 +13,16 @@ interface VehicleInfoModalProps {
 export default function VehicleInfoModal({ auction }: VehicleInfoModalProps) {
   // Check if this is a vehicle (Motor or Mobil) based on category
   const isVehicle = auction.category?.name === "Motor" || auction.category?.name === "Mobil";
-  
+
   if (!isVehicle) {
     return null;
   }
 
-  const hasVehicleInfo = auction.productionYear || 
-                        auction.plateNumber || 
-                        auction.chassisNumber || 
-                        auction.engineNumber || 
-                        auction.documentInfo;
+  const hasVehicleInfo = auction.productionYear ||
+    auction.plateNumber ||
+    auction.chassisNumber ||
+    auction.engineNumber ||
+    auction.documentInfo;
 
   if (!hasVehicleInfo) {
     return null;
@@ -43,7 +43,7 @@ export default function VehicleInfoModal({ auction }: VehicleInfoModalProps) {
             Informasi {auction.category?.name}
           </DialogTitle>
         </DialogHeader>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="space-y-4">
@@ -56,7 +56,7 @@ export default function VehicleInfoModal({ auction }: VehicleInfoModalProps) {
                   <span className="font-medium">{auction.productionYear}</span>
                 </div>
               )}
-              
+
               {auction.plateNumber && (
                 <>
                   <Separator />
@@ -69,7 +69,7 @@ export default function VehicleInfoModal({ auction }: VehicleInfoModalProps) {
                   </div>
                 </>
               )}
-              
+
               {auction.chassisNumber && (
                 <>
                   <Separator />
@@ -82,7 +82,7 @@ export default function VehicleInfoModal({ auction }: VehicleInfoModalProps) {
                   </div>
                 </>
               )}
-              
+
               {auction.engineNumber && (
                 <>
                   <Separator />
@@ -95,7 +95,7 @@ export default function VehicleInfoModal({ auction }: VehicleInfoModalProps) {
                   </div>
                 </>
               )}
-              
+
               {auction.documentInfo && (
                 <>
                   <Separator />

@@ -10,6 +10,7 @@ import BidForm from "@/components/bid-form";
 import VehicleInfoModal from "@/components/vehicle-info-modal";
 import PaymentForm from "@/components/payment-form";
 import PaymentStatus from "@/components/payment-status";
+import ImageSlider from "@/components/image-slider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -143,9 +144,9 @@ export default function AuctionDetail() {
   const isWinner = user && auction.winnerId === user.id;
 
   // Check if user should see payment form (winner and payment not submitted or rejected)
-  const shouldShowPayment = 
-    isWinner && 
-    auction.status === "ended" && 
+  const shouldShowPayment =
+    isWinner &&
+    auction.status === "ended" &&
     (paymentStatus === "not_submitted" || paymentStatus === "rejected");
 
   return (
@@ -159,11 +160,18 @@ export default function AuctionDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
           {/* Detail Produk */}
           <div>
-            <div className="aspect-square rounded-lg overflow-hidden mb-4">
-              <img
-                src={auction.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=600&h=600&fit=crop"}
-                alt={auction.title}
-                className="w-full h-full object-cover"
+            {/* Image Slider */}
+            <div className="mb-4">
+              <ImageSlider
+                images={
+                  Array.isArray(auction.imageUrls)
+                    ? auction.imageUrls.flat()
+                    : auction.imageUrls
+                      ? [auction.imageUrls]
+                      : []
+                }
+                showGallery={true}
+                className="w-full"
               />
             </div>
             <Card>
@@ -182,7 +190,7 @@ export default function AuctionDetail() {
                   </div>
                   <div>
                     <span className="text-gray-600">Lokasi:</span>
-                    <div className="flex items-center ml-2">
+                    <div className="flex items-center ml-1/2">
                       <MapPin className="h-4 w-4 mr-1" />
                       <span className="font-medium">{auction.location}</span>
                     </div>
@@ -199,6 +207,11 @@ export default function AuctionDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Vehicle Information / Document Section */}
+            <div className="mt-4">
+              <VehicleInfoModal auction={auction} />
+            </div>
           </div>
 
           {/* Bidding Section */}
@@ -243,8 +256,6 @@ export default function AuctionDetail() {
                 <CountdownTimer endTime={new Date(auction.endTime).toISOString()} />
               </div>
             )}
-
-            <VehicleInfoModal auction={auction} />
 
             {shouldShowPayment && (
               <PaymentForm
@@ -312,6 +323,66 @@ export default function AuctionDetail() {
                       <p className="text-green-600 text-sm mt-1">
                         Harga Final: Rp {Number(auction.currentPrice).toLocaleString('id-ID')}
                       </p>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Invoice Section for Winner */}
+                {isWinner && auction.status === "ended" && auction.winnerId && (
+                  <Card className="mt-4 bg-blue-50 border-blue-200">
+                    <CardHeader>
+                      <CardTitle className="text-blue-800 flex items-center gap-2">
+                        <CreditCard className="h-5 w-5" />
+                        Invoice Pembayaran
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {auction.invoiceDocument && auction.invoiceNumber ? (
+                        <div className="text-center space-y-3">
+                          <div className="bg-white p-4 rounded-lg border border-blue-200">
+                            <h4 className="font-semibold text-blue-900 mb-2">Invoice Tersedia</h4>
+                            <p className="text-blue-700 text-sm mb-2">
+                              No. Invoice: <span className="font-mono font-bold">{auction.invoiceNumber}</span>
+                            </p>
+                            <p className="text-blue-600 text-sm mb-3">
+                              Silakan download dan lakukan pembayaran sesuai instruksi dalam invoice.
+                            </p>
+                            <div className="flex gap-2 justify-center">
+                              <Button
+                                onClick={() => window.open(`/api/auctions/${auction.id}/invoice/preview`, '_blank')}
+                                variant="outline"
+                                className="text-blue-700 border-blue-300 hover:bg-blue-100"
+                              >
+                                <Eye className="h-4 w-4 mr-2" />
+                                Lihat Invoice PDF
+                              </Button>
+                              <Button
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = `/api/auctions/${auction.id}/invoice`;
+                                  link.download = `Invoice-${auction.invoiceNumber}.pdf`;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                }}
+                                className="bg-blue-600 hover:bg-blue-700"
+                              >
+                                Download PDF
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <p className="text-yellow-800 mb-2">Invoice sedang diproses...</p>
+                          <p className="text-yellow-600 text-sm">
+                            Invoice akan tersedia setelah admin memproses kemenangan Anda.
+                          </p>
+                          <p className="text-yellow-600 text-sm mt-1">
+                            Anda akan mendapat notifikasi saat invoice sudah siap.
+                          </p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}

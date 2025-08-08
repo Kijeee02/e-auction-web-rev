@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -10,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import Navbar from "@/components/navbar";
 import VehicleInfoModal from "@/components/vehicle-info-modal";
 import LocationSelector from "@/components/location-selector";
+import MultipleImageUpload from "@/components/multiple-image-upload";
 import { FileText } from "lucide-react";
 
 export default function EditAuctionPage() {
@@ -52,7 +52,7 @@ export default function EditAuctionPage() {
         condition: "",
         location: "",
         categoryId: "",
-        imageUrl: "",
+        imageUrls: [] as string[], // Changed from imageUrl to imageUrls array
         // Vehicle-specific fields
         productionYear: "",
         plateNumber: "",
@@ -89,7 +89,7 @@ export default function EditAuctionPage() {
                 condition: auction.condition ?? "",
                 location: auction.location ?? "",
                 categoryId: auction.categoryId?.toString() ?? "",
-                imageUrl: auction.imageUrl ?? "",
+                imageUrls: auction.imageUrls || (auction.imageUrl ? [auction.imageUrl] : []), // Handle both old and new format
                 // Vehicle-specific fields
                 productionYear: auction.productionYear?.toString() ?? "",
                 plateNumber: auction.plateNumber ?? "",
@@ -144,12 +144,7 @@ export default function EditAuctionPage() {
                     </div>
                     {/* Vehicle Info Modal Button */}
                     {isVehicleCategory && (
-                        <VehicleInfoModal auction={auction}>
-                            <Button variant="outline">
-                                <FileText className="h-4 w-4 mr-2" />
-                                View Document/Info
-                            </Button>
-                        </VehicleInfoModal>
+                        <VehicleInfoModal auction={auction} />
                     )}
                 </div>
 
@@ -162,14 +157,14 @@ export default function EditAuctionPage() {
                             className="grid grid-cols-1 lg:grid-cols-2 gap-6"
                             onSubmit={e => {
                                 e.preventDefault();
-                                
+
                                 const updateData = {
                                     title: form.title,
                                     description: form.description,
                                     condition: form.condition,
                                     location: form.location,
                                     categoryId: parseInt(form.categoryId),
-                                    imageUrl: form.imageUrl,
+                                    imageUrls: form.imageUrls.length > 0 ? form.imageUrls : undefined,
                                     startingPrice: parseFloat(form.startingPrice),
                                     endTime: new Date(form.endTime),
                                 };
@@ -191,14 +186,14 @@ export default function EditAuctionPage() {
                             {/* Left Column - Basic Info */}
                             <div className="space-y-4">
                                 <h3 className="font-semibold text-gray-900 border-b pb-2">Informasi Dasar</h3>
-                                
-                                <Input 
-                                    placeholder="Judul Lelang" 
-                                    value={form.title} 
-                                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))} 
+
+                                <Input
+                                    placeholder="Judul Lelang"
+                                    value={form.title}
+                                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
                                     required
                                 />
-                                
+
                                 <textarea
                                     placeholder="Deskripsi"
                                     value={form.description}
@@ -206,7 +201,7 @@ export default function EditAuctionPage() {
                                     className="w-full border rounded p-2 min-h-[80px]"
                                     required
                                 />
-                                
+
                                 <select
                                     value={form.condition}
                                     onChange={e => setForm(f => ({ ...f, condition: e.target.value }))}
@@ -219,7 +214,7 @@ export default function EditAuctionPage() {
                                     <option value="good">Baik</option>
                                     <option value="fair">Cukup</option>
                                 </select>
-                                
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Lokasi</label>
                                     <LocationSelector
@@ -228,7 +223,7 @@ export default function EditAuctionPage() {
                                         required
                                     />
                                 </div>
-                                
+
                                 <select
                                     value={form.categoryId}
                                     onChange={e => setForm(f => ({ ...f, categoryId: e.target.value }))}
@@ -243,36 +238,13 @@ export default function EditAuctionPage() {
                                     ))}
                                 </select>
 
-                                {/* File Upload for Image */}
-                                <div className="space-y-2">
-                                    <label className="block text-sm font-medium text-gray-700">Upload Gambar</label>
-                                    <Input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                                // Create a temporary URL for preview
-                                                const reader = new FileReader();
-                                                reader.onload = (event) => {
-                                                    setForm(f => ({ ...f, imageUrl: event.target?.result as string }));
-                                                };
-                                                reader.readAsDataURL(file);
-                                            }
-                                        }}
-                                        className="w-full border rounded p-2"
-                                    />
-                                    {form.imageUrl && (
-                                        <div className="mt-2">
-                                            <img
-                                                src={form.imageUrl}
-                                                alt="Preview"
-                                                className="w-32 h-32 object-cover rounded border"
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                                
+                                {/* Multiple Image Upload */}
+                                <MultipleImageUpload
+                                    images={form.imageUrls}
+                                    onChange={(images) => setForm(f => ({ ...f, imageUrls: images }))}
+                                    maxImages={5}
+                                />
+
                                 <div className="space-y-1">
                                     <label className="text-sm font-medium text-gray-700">Harga Awal</label>
                                     <div className="relative">
@@ -290,12 +262,12 @@ export default function EditAuctionPage() {
                                         />
                                     </div>
                                 </div>
-                                
-                                <Input 
-                                    placeholder="Waktu Berakhir" 
-                                    type="datetime-local" 
-                                    value={form.endTime} 
-                                    onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))} 
+
+                                <Input
+                                    placeholder="Waktu Berakhir"
+                                    type="datetime-local"
+                                    value={form.endTime}
+                                    onChange={e => setForm(f => ({ ...f, endTime: e.target.value }))}
                                     required
                                 />
                             </div>
@@ -307,32 +279,32 @@ export default function EditAuctionPage() {
                                         <h3 className="font-semibold text-gray-900 border-b pb-2">
                                             Informasi {form.categoryId === motorCategoryId ? "Motor" : "Mobil"}
                                         </h3>
-                                        
+
                                         <Input
                                             placeholder="Tahun Produksi"
                                             type="number"
                                             value={form.productionYear}
                                             onChange={e => setForm(f => ({ ...f, productionYear: e.target.value }))}
                                         />
-                                        
+
                                         <Input
                                             placeholder="No Polisi"
                                             value={form.plateNumber}
                                             onChange={e => setForm(f => ({ ...f, plateNumber: e.target.value }))}
                                         />
-                                        
+
                                         <Input
                                             placeholder="No Rangka"
                                             value={form.chassisNumber}
                                             onChange={e => setForm(f => ({ ...f, chassisNumber: e.target.value }))}
                                         />
-                                        
+
                                         <Input
                                             placeholder="No Mesin"
                                             value={form.engineNumber}
                                             onChange={e => setForm(f => ({ ...f, engineNumber: e.target.value }))}
                                         />
-                                        
+
                                         <textarea
                                             placeholder="Keterangan Surat (STNK/BPKB/Kelengkapan dokumen)"
                                             value={form.documentInfo}
@@ -349,15 +321,15 @@ export default function EditAuctionPage() {
 
                             {/* Form Actions - Full Width */}
                             <div className="lg:col-span-2 flex justify-end space-x-2 pt-4 border-t">
-                                <Button 
-                                    type="button" 
-                                    variant="outline" 
+                                <Button
+                                    type="button"
+                                    variant="outline"
                                     onClick={() => navigate("/admin")}
                                 >
                                     Batal
                                 </Button>
-                                <Button 
-                                    type="submit" 
+                                <Button
+                                    type="submit"
                                     disabled={updateAuctionMutation.isPending}
                                 >
                                     {updateAuctionMutation.isPending ? "Menyimpan..." : "Simpan Perubahan"}

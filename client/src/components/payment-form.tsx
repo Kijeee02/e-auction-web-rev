@@ -13,7 +13,7 @@ import { CreditCard, Upload, X, Image } from "lucide-react";
 import type { Auction } from "@shared/schema";
 
 interface PaymentFormProps {
-  auction: Auction;
+  auction: Omit<Auction, "imageUrls"> & { imageUrls: string | string[] | null };
   onPaymentSubmitted: () => void;
 }
 
@@ -54,7 +54,7 @@ export default function PaymentForm({ auction, onPaymentSubmitted }: PaymentForm
       }
 
       setSelectedFile(file);
-      
+
       // Create preview URL
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
@@ -114,7 +114,7 @@ export default function PaymentForm({ auction, onPaymentSubmitted }: PaymentForm
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.paymentMethod) {
       toast({
         title: "Error",
@@ -296,9 +296,9 @@ export default function PaymentForm({ auction, onPaymentSubmitted }: PaymentForm
             </p>
           </div>
 
-          <Button 
-            type="submit" 
-            className="w-full" 
+          <Button
+            type="submit"
+            className="w-full"
             disabled={paymentMutation.isPending}
           >
             {paymentMutation.isPending ? "Submitting..." : "Submit Payment"}

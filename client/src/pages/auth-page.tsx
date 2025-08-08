@@ -107,7 +107,7 @@ export default function AuthPage() {
           <CardHeader className="text-center">
             <div className="flex items-center justify-center mb-4">
               <Gavel className="h-8 w-8 text-primary mr-2" />
-              <span className="text-2xl font-bold text-primary">e-auction</span>
+              <span className="text-2xl font-bold text-primary">3D Auction</span>
             </div>
             <CardTitle className="text-2xl">
               {activeTab === "login" ? "Masuk ke Akun" : "Daftar Akun Baru"}
@@ -323,6 +323,9 @@ export default function AuthPage() {
       {/* Right side - Hero section */}
       <div className="hidden lg:flex flex-1 gradient-bg items-center justify-center p-8">
         <div className="text-center text-white max-w-md">
+          <h1 className="text-4xl font-bold mb-4">
+            PT. Auctioneer Tridaya
+          </h1>
           <Gavel className="h-16 w-16 mx-auto mb-6" />
           <h2 className="text-3xl font-bold mb-4">
             Bergabung dengan Platform Lelang Terpercaya

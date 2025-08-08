@@ -27,7 +27,11 @@ export default function AuctionCard({ auction }: AuctionCardProps) {
     <Card className="auction-card">
       <div className="relative">
         <img
-          src={auction.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop"}
+          src={
+            Array.isArray(auction.imageUrls)
+              ? (auction.imageUrls[0] || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop")
+              : (auction.imageUrls || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop")
+          }
           alt={auction.title}
           className="w-full h-48 object-cover"
         />

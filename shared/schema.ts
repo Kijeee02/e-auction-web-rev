@@ -36,13 +36,16 @@ export const auctions = sqliteTable("auctions", {
   minimumIncrement: real("minimum_increment").notNull().default(50000),
   condition: text("condition").notNull(), // "new", "like_new", "good", "fair"
   location: text("location").notNull(),
-  imageUrl: text("image_url"),
+  imageUrls: text("image_urls"), // JSON array of image URLs
   status: text("status").notNull().default("active"), // "active", "ended", "cancelled"
   startTime: integer("start_time", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   endTime: integer("end_time", { mode: "timestamp" }).notNull(),
   categoryId: integer("category_id").references(() => categories.id).notNull(),
   winnerId: integer("winner_id").references(() => users.id),
   archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+  // Invoice fields - untuk ditampilkan di detail page saat user menang
+  invoiceDocument: text("invoice_document"), // Invoice PDF document
+  invoiceNumber: text("invoice_number"), // Invoice number for winner
   // Vehicle-specific fields
   productionYear: integer("production_year"),
   plateNumber: text("plate_number"),
@@ -72,14 +75,16 @@ export const payments = sqliteTable("payments", {
   auctionId: integer("auction_id").references(() => auctions.id).notNull(),
   winnerId: integer("winner_id").references(() => users.id).notNull(),
   amount: real("amount").notNull(),
+  invoiceNumber: text("invoice_number"), // Auto-generated invoice number
   paymentMethod: text("payment_method").notNull(), // "bank_transfer", "ewallet", etc.
   paymentProof: text("payment_proof"), // URL to uploaded proof image
   bankName: text("bank_name"),
   accountNumber: text("account_number"),
   accountName: text("account_name"),
-  status: text("status").notNull().default("pending"), // "pending", "verified", "rejected"
+  status: text("status").notNull().default("unpaid"), // "unpaid", "pending", "verified", "rejected"
   notes: text("notes"), // Admin notes
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }),
   verifiedAt: integer("verified_at", { mode: "timestamp" }),
   verifiedBy: integer("verified_by").references(() => users.id),
   // Admin document uploads
@@ -190,7 +195,7 @@ export const insertAuctionSchema = createInsertSchema(auctions)
     startingPrice: z.number().min(0, "Harga awal harus lebih dari 0"),
     currentPrice: z.number().default(0),
     condition: z.enum(["new", "like_new", "good", "fair"]),
-    imageUrl: z.string().optional(),
+    imageUrls: z.array(z.string()).optional(),
     minimumIncrement: z.number().default(50000),
     title: z.string(),
     description: z.string(),
@@ -232,11 +237,12 @@ export const insertCategorySchema = createInsertSchema(categories).omit({
 export const insertPaymentSchema = createInsertSchema(payments).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
   verifiedAt: true,
   verifiedBy: true,
 }).extend({
-  paymentMethod: z.enum(["bank_transfer", "ewallet", "cash"]),
-  status: z.enum(["pending", "verified", "rejected"]).default("pending"),
+  paymentMethod: z.enum(["bank_transfer", "ewallet", "cash", "pending_selection"]),
+  status: z.enum(["unpaid", "pending", "verified", "rejected"]).default("unpaid"),
   amount: z.number().positive("Amount must be positive"),
   auctionId: z.number().positive("Auction ID must be positive"),
   winnerId: z.number().positive("Winner ID must be positive"),
@@ -245,7 +251,6 @@ export const insertPaymentSchema = createInsertSchema(payments).omit({
   accountNumber: z.string().optional(),
   accountName: z.string().optional(),
 });
-export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 
 // Notifications table
 export const notifications = sqliteTable("notifications", {
@@ -279,10 +284,16 @@ export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 
 // Extended types with relations
-export type AuctionWithDetails = Auction & {
+export type AuctionWithDetails = Omit<Auction, 'imageUrls'> & {
+  imageUrls: string[];
   category: Category;
   bids: (Bid & { bidder: User })[];
   _count?: { bids: number };
+};
+
+// Update type for auctions with proper imageUrls type
+export type AuctionUpdate = Omit<Partial<Auction>, 'imageUrls'> & {
+  imageUrls?: string[];
 };
 
 export type UserStats = {

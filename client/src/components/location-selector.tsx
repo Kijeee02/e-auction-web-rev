@@ -13,17 +13,7 @@ interface Regency {
   name: string;
 }
 
-interface District {
-  id: string;
-  regency_id: string;
-  name: string;
-}
 
-interface Village {
-  id: string;
-  district_id: string;
-  name: string;
-}
 
 interface LocationSelectorProps {
   value: string;
@@ -34,14 +24,10 @@ interface LocationSelectorProps {
 export default function LocationSelector({ value, onChange, required }: LocationSelectorProps) {
   const [provinces, setProvinces] = useState<Province[]>([]);
   const [regencies, setRegencies] = useState<Regency[]>([]);
-  const [districts, setDistricts] = useState<District[]>([]);
-  const [villages, setVillages] = useState<Village[]>([]);
-  
+
   const [selectedProvince, setSelectedProvince] = useState("");
   const [selectedRegency, setSelectedRegency] = useState("");
-  const [selectedDistrict, setSelectedDistrict] = useState("");
-  const [selectedVillage, setSelectedVillage] = useState("");
-  
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [useCustomInput, setUseCustomInput] = useState(false);
@@ -60,13 +46,13 @@ export default function LocationSelector({ value, onChange, required }: Location
       try {
         setLoading(true);
         setError("");
-        
+
         // Try multiple sources for province data
         const sources = [
           'https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/provinces.json',
           'https://raw.githubusercontent.com/emsifa/api-wilayah-indonesia/master/api/provinces.json'
         ];
-        
+
         let data = null;
         for (const source of sources) {
           try {
@@ -80,7 +66,7 @@ export default function LocationSelector({ value, onChange, required }: Location
             console.warn("Failed to load from:", source);
           }
         }
-        
+
         if (!data) {
           // Use fallback data for major provinces in Jabodetabek area
           data = [
@@ -90,7 +76,7 @@ export default function LocationSelector({ value, onChange, required }: Location
           ];
           console.log("Using fallback province data");
         }
-        
+
         setProvinces(data);
       } catch (error) {
         console.error('Error loading provinces:', error);
@@ -105,7 +91,7 @@ export default function LocationSelector({ value, onChange, required }: Location
         setLoading(false);
       }
     };
-    
+
     loadProvinces();
   }, []);
 
@@ -116,12 +102,12 @@ export default function LocationSelector({ value, onChange, required }: Location
         try {
           setLoading(true);
           setError("");
-          
+
           const sources = [
             'https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/regencies.json',
             'https://raw.githubusercontent.com/emsifa/api-wilayah-indonesia/master/api/regencies.json'
           ];
-          
+
           let data = null;
           for (const source of sources) {
             try {
@@ -134,7 +120,7 @@ export default function LocationSelector({ value, onChange, required }: Location
               console.warn("Failed to load regencies from:", source);
             }
           }
-          
+
           if (!data) {
             // Fallback regency data for major areas
             if (selectedProvince === "31") { // DKI Jakarta
@@ -164,14 +150,10 @@ export default function LocationSelector({ value, onChange, required }: Location
               data = [];
             }
           }
-          
+
           const filteredRegencies = data.filter((regency: Regency) => regency.province_id === selectedProvince);
           setRegencies(filteredRegencies);
-          setDistricts([]);
-          setVillages([]);
           setSelectedRegency("");
-          setSelectedDistrict("");
-          setSelectedVillage("");
         } catch (error) {
           console.error('Error loading regencies:', error);
           setError("Gagal memuat data kabupaten/kota");
@@ -180,100 +162,10 @@ export default function LocationSelector({ value, onChange, required }: Location
           setLoading(false);
         }
       };
-      
+
       loadRegencies();
     }
   }, [selectedProvince]);
-
-  // Load districts when regency is selected
-  useEffect(() => {
-    if (selectedRegency) {
-      const loadDistricts = async () => {
-        try {
-          setLoading(true);
-          
-          const sources = [
-            'https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/districts.json',
-            'https://raw.githubusercontent.com/emsifa/api-wilayah-indonesia/master/api/districts.json'
-          ];
-          
-          let data = null;
-          for (const source of sources) {
-            try {
-              const response = await fetch(source);
-              if (response.ok) {
-                data = await response.json();
-                break;
-              }
-            } catch (err) {
-              console.warn("Failed to load districts from:", source);
-            }
-          }
-          
-          if (!data) {
-            data = []; // Empty fallback for districts
-          }
-          
-          const filteredDistricts = data.filter((district: District) => district.regency_id === selectedRegency);
-          setDistricts(filteredDistricts);
-          setVillages([]);
-          setSelectedDistrict("");
-          setSelectedVillage("");
-        } catch (error) {
-          console.error('Error loading districts:', error);
-          setDistricts([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-      
-      loadDistricts();
-    }
-  }, [selectedRegency]);
-
-  // Load villages when district is selected
-  useEffect(() => {
-    if (selectedDistrict) {
-      const loadVillages = async () => {
-        try {
-          setLoading(true);
-          
-          const sources = [
-            'https://raw.githubusercontent.com/hanifabd/wilayah-indonesia-area/master/data/villages.json',
-            'https://raw.githubusercontent.com/emsifa/api-wilayah-indonesia/master/data/villages.json'
-          ];
-          
-          let data = null;
-          for (const source of sources) {
-            try {
-              const response = await fetch(source);
-              if (response.ok) {
-                data = await response.json();
-                break;
-              }
-            } catch (err) {
-              console.warn("Failed to load villages from:", source);
-            }
-          }
-          
-          if (!data) {
-            data = []; // Empty fallback for villages
-          }
-          
-          const filteredVillages = data.filter((village: Village) => village.district_id === selectedDistrict);
-          setVillages(filteredVillages);
-          setSelectedVillage("");
-        } catch (error) {
-          console.error('Error loading villages:', error);
-          setVillages([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-      
-      loadVillages();
-    }
-  }, [selectedDistrict]);
 
   // Update parent component when location changes
   useEffect(() => {
@@ -281,25 +173,19 @@ export default function LocationSelector({ value, onChange, required }: Location
       onChange(customLocation);
       return;
     }
-    
+
     const provinceName = provinces.find(p => p.id === selectedProvince)?.name || "";
     const regencyName = regencies.find(r => r.id === selectedRegency)?.name || "";
-    const districtName = districts.find(d => d.id === selectedDistrict)?.name || "";
-    const villageName = villages.find(v => v.id === selectedVillage)?.name || "";
-    
+
     let location = "";
-    if (selectedVillage && villageName) {
-      location = `${villageName}, ${districtName}, ${regencyName}, ${provinceName}`;
-    } else if (selectedDistrict && districtName) {
-      location = `${districtName}, ${regencyName}, ${provinceName}`;
-    } else if (selectedRegency && regencyName) {
+    if (selectedRegency && regencyName) {
       location = `${regencyName}, ${provinceName}`;
     } else if (selectedProvince && provinceName) {
       location = provinceName;
     }
-    
+
     onChange(location);
-  }, [selectedProvince, selectedRegency, selectedDistrict, selectedVillage, provinces, regencies, districts, villages, onChange, useCustomInput, customLocation]);
+  }, [selectedProvince, selectedRegency, provinces, regencies, onChange, useCustomInput, customLocation]);
 
   if (useCustomInput) {
     return (
@@ -339,13 +225,13 @@ export default function LocationSelector({ value, onChange, required }: Location
           Input Manual
         </button>
       </div>
-      
+
       {error && (
         <div className="text-sm text-yellow-600 bg-yellow-50 p-2 rounded">
           {error}
         </div>
       )}
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {/* Province Selection */}
         <div>
@@ -368,53 +254,17 @@ export default function LocationSelector({ value, onChange, required }: Location
 
         {/* Regency Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Kabupaten/Kota</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Kota</label>
           <select
             value={selectedRegency}
             onChange={(e) => setSelectedRegency(e.target.value)}
             className="w-full border rounded p-2"
             disabled={!selectedProvince || loading}
           >
-            <option value="">-- Pilih Kabupaten/Kota --</option>
+            <option value="">-- Pilih Kota --</option>
             {regencies.map((regency) => (
               <option key={regency.id} value={regency.id}>
                 {regency.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* District Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Kecamatan (Opsional)</label>
-          <select
-            value={selectedDistrict}
-            onChange={(e) => setSelectedDistrict(e.target.value)}
-            className="w-full border rounded p-2"
-            disabled={!selectedRegency || loading}
-          >
-            <option value="">-- Pilih Kecamatan --</option>
-            {districts.map((district) => (
-              <option key={district.id} value={district.id}>
-                {district.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Village Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Kelurahan/Desa (Opsional)</label>
-          <select
-            value={selectedVillage}
-            onChange={(e) => setSelectedVillage(e.target.value)}
-            className="w-full border rounded p-2"
-            disabled={!selectedDistrict || loading}
-          >
-            <option value="">-- Pilih Kelurahan/Desa --</option>
-            {villages.map((village) => (
-              <option key={village.id} value={village.id}>
-                {village.name}
               </option>
             ))}
           </select>
@@ -428,7 +278,7 @@ export default function LocationSelector({ value, onChange, required }: Location
           <p className="text-sm text-gray-600">{value}</p>
         </div>
       )}
-      
+
       {loading && (
         <p className="text-sm text-blue-600">Memuat data wilayah...</p>
       )}

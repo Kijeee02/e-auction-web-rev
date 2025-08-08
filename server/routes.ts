@@ -7,6 +7,9 @@ import { z } from "zod";
 import express, { Request, Response } from "express";
 import { db } from "./db";
 import { auctions } from "@shared/schema";
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 
 const router = express.Router();
@@ -136,9 +139,14 @@ export function registerRoutes(app: Express): Server {
         return res.status(403).json({ message: "Admin access required" });
       }
 
+      console.log("[CREATE AUCTION DEBUG] Received data:", req.body);
+
       const auctionData = insertAuctionSchema.parse(req.body);
+      console.log("[CREATE AUCTION DEBUG] Parsed data:", auctionData);
+
       const auction = await storage.createAuction(auctionData);
-      
+      console.log("[CREATE AUCTION DEBUG] Created auction:", auction.id);
+
       // Admin notification for new auction creation
       await storage.createAdminNotification(
         "auction",
@@ -151,9 +159,10 @@ export function registerRoutes(app: Express): Server {
           endTime: auction.endTime,
         }
       );
-      
+
       res.status(201).json(auction);
     } catch (error) {
+      console.error("[CREATE AUCTION DEBUG] Error:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid auction data", errors: error.errors });
       }
@@ -212,7 +221,7 @@ export function registerRoutes(app: Express): Server {
 
       // Prevent deletion if auction has a winner
       if (auction.winnerId) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Cannot delete auction with winner",
           error: "Lelang yang sudah ada pemenang tidak dapat dihapus"
         });
@@ -481,7 +490,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       const { firstName, lastName, username, email, phone } = req.body;
-      
+
       // Validate required fields
       if (!firstName || !lastName || !username || !email) {
         return res.status(400).json({ message: "All required fields must be filled" });
@@ -532,7 +541,7 @@ export function registerRoutes(app: Express): Server {
       // Verify current password (you'll need to implement password verification)
       const bcrypt = require("bcrypt");
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
-      
+
       if (!isCurrentPasswordValid) {
         return res.status(400).json({ message: "Current password is incorrect" });
       }
@@ -561,12 +570,12 @@ export function registerRoutes(app: Express): Server {
       // Simulate avatar upload with a placeholder URL
       // In a real implementation, you would use multer to handle file uploads
       const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(req.user.firstName + ' ' + req.user.lastName)}&size=200&background=3b82f6&color=ffffff`;
-      
+
       await storage.updateUser(req.user.id, { avatar: avatarUrl });
 
-      res.json({ 
+      res.json({
         message: "Avatar uploaded successfully",
-        avatarUrl 
+        avatarUrl
       });
     } catch (error) {
       console.error("Error uploading avatar:", error);
@@ -585,8 +594,8 @@ export function registerRoutes(app: Express): Server {
       if (req.user.role === "admin") {
         // Check if there are other admins
         // This is a safety measure - implement based on your business logic
-        return res.status(400).json({ 
-          message: "Cannot delete admin account. Please contact system administrator." 
+        return res.status(400).json({
+          message: "Cannot delete admin account. Please contact system administrator."
         });
       }
 
@@ -606,25 +615,345 @@ export function registerRoutes(app: Express): Server {
         return res.status(403).json({ message: "Admin access required" });
       }
 
-      const exportData = await storage.exportAuctionData();
-      
-      // Set headers for CSV download
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename="auction_data.csv"');
-      
-      // Convert to CSV format
-      if (exportData.length === 0) {
-        return res.send("No data available");
+      // Get filter parameters from query string
+      const { status, search, filtered, format = "csv" } = req.query;
+
+      console.log("[EXPORT DEBUG] Filter parameters received:", { status, search, filtered, format });
+
+      let exportData;
+      let baseFilename = "auction_data";
+
+      if (filtered === "true") {
+        // Export only filtered data
+        console.log("[EXPORT DEBUG] Using filtered export with filters:", { status, search });
+        exportData = await storage.exportFilteredAuctionData({
+          status: status as string,
+          search: search as string
+        });
+
+        // Create descriptive filename
+        const parts = [baseFilename];
+        if (status && status !== "all") {
+          parts.push(`status_${status}`);
+        }
+        if (search) {
+          parts.push(`search_${(search as string).replace(/[^a-zA-Z0-9]/g, '_')}`);
+        }
+        parts.push("filtered");
+        baseFilename = parts.join("_");
+      } else {
+        // Export all data (original behavior)
+        console.log("[EXPORT DEBUG] Using unfiltered export");
+        exportData = await storage.exportAuctionData();
       }
-      
-      const headers = Object.keys(exportData[0]).join(',');
-      const csvData = exportData.map(row => 
-        Object.values(row).map(value => 
-          typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value
-        ).join(',')
-      ).join('\n');
-      
-      res.send(headers + '\n' + csvData);
+
+      console.log("[EXPORT DEBUG] Export data count:", exportData.length);
+      console.log("[EXPORT DEBUG] First few records:", exportData.slice(0, 2).map(item => ({ id: item.id, title: item.title, status: item.status })));
+
+      // Function to format column headers
+      const formatHeader = (key: string): string => {
+        const headerMap: { [key: string]: string } = {
+          'id': 'ID',
+          'title': 'Judul Lelang',
+          'description': 'Deskripsi',
+          'startingBid': 'Bid Awal',
+          'currentBid': 'Bid Saat Ini',
+          'startTime': 'Waktu Mulai',
+          'endTime': 'Waktu Berakhir',
+          'status': 'Status',
+          'categoryId': 'ID Kategori',
+          'categoryName': 'Kategori',
+          'sellerId': 'ID Penjual',
+          'sellerName': 'Nama Penjual',
+          'winnerId': 'ID Pemenang',
+          'winnerName': 'Nama Pemenang',
+          'bidCount': 'Jumlah Bid',
+          'createdAt': 'Dibuat Pada',
+          'updatedAt': 'Diperbarui Pada',
+          'images': 'Gambar',
+          'location': 'Lokasi'
+        };
+        return headerMap[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
+      };
+
+      // Function to format values
+      const formatValue = (key: string, value: any): string => {
+        if (value === null || value === undefined) return '-';
+
+        // Format currency fields
+        if (['startingBid', 'currentBid'].includes(key)) {
+          return new Intl.NumberFormat('id-ID', {
+            style: 'currency',
+            currency: 'IDR',
+            minimumFractionDigits: 0
+          }).format(Number(value));
+        }
+
+        // Format date fields
+        if (['startTime', 'endTime', 'createdAt', 'updatedAt'].includes(key)) {
+          return new Date(value).toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        }
+
+        // Format status
+        if (key === 'status') {
+          const statusMap: { [key: string]: string } = {
+            'active': 'Aktif',
+            'ended': 'Berakhir',
+            'pending': 'Menunggu',
+            'cancelled': 'Dibatalkan'
+          };
+          return statusMap[value] || value;
+        }
+
+        return String(value);
+      };
+
+      if (exportData.length === 0) {
+        return res.status(404).json({ message: "No data available for export" });
+      }
+
+      // Handle different export formats
+      switch (format) {
+        case "csv":
+          res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+          res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}.csv"`);
+
+          // Define clear column structure for CSV
+          const csvColumns = [
+            { key: 'id', header: 'ID' },
+            { key: 'title', header: 'Judul Lelang' },
+            { key: 'description', header: 'Deskripsi' },
+            { key: 'categoryName', header: 'Kategori' },
+            { key: 'startingBid', header: 'Bid Awal' },
+            { key: 'currentBid', header: 'Bid Saat Ini' },
+            { key: 'status', header: 'Status' },
+            { key: 'location', header: 'Lokasi' },
+            { key: 'startTime', header: 'Waktu Mulai' },
+            { key: 'endTime', header: 'Waktu Berakhir' },
+            { key: 'sellerName', header: 'Penjual' },
+            { key: 'winnerName', header: 'Pemenang' },
+            { key: 'bidCount', header: 'Jumlah Bid' }
+          ];
+
+          // Create CSV headers
+          const csvHeaders = csvColumns.map(col => col.header).join(',');
+
+          // Create CSV data rows
+          const csvData = exportData.map(row =>
+            csvColumns.map(col => {
+              let value = row[col.key];
+              let formattedValue = formatValue(col.key, value);
+
+              // Handle null/undefined values
+              if (formattedValue === null || formattedValue === undefined || formattedValue === 'null') {
+                formattedValue = '-';
+              }
+
+              // Escape quotes and wrap in quotes if necessary
+              if (formattedValue.includes(',') || formattedValue.includes('"') || formattedValue.includes('\n')) {
+                formattedValue = `"${formattedValue.replace(/"/g, '""')}"`;
+              }
+
+              return formattedValue;
+            }).join(',')
+          ).join('\n');
+
+          // Add BOM for proper UTF-8 display in Excel
+          const csvContent = '\uFEFF' + csvHeaders + '\n' + csvData;
+
+          return res.send(csvContent); case "excel":
+          // Create a clean, organized data structure for Excel
+          const cleanExcelData = exportData.map(row => {
+            return {
+              'ID': row.id,
+              'Judul Lelang': row.title,
+              'Deskripsi': row.description,
+              'Kategori': row.categoryName || '-',
+              'Bid Awal': formatValue('startingBid', row.startingBid),
+              'Bid Saat Ini': formatValue('currentBid', row.currentBid),
+              'Status': formatValue('status', row.status),
+              'Lokasi': row.location || '-',
+              'Waktu Mulai': formatValue('startTime', row.startTime),
+              'Waktu Berakhir': formatValue('endTime', row.endTime),
+              'Penjual': row.sellerName || '-',
+              'Pemenang': row.winnerName || '-',
+              'Jumlah Bid': row.bidCount || 0,
+              'Dibuat Pada': formatValue('createdAt', row.createdAt)
+            };
+          });
+
+          const ws = XLSX.utils.json_to_sheet(cleanExcelData);
+
+          // Set specific column widths for better readability
+          ws['!cols'] = [
+            { wch: 8 },   // ID
+            { wch: 30 },  // Judul Lelang
+            { wch: 40 },  // Deskripsi
+            { wch: 15 },  // Kategori
+            { wch: 18 },  // Bid Awal
+            { wch: 18 },  // Bid Saat Ini
+            { wch: 12 },  // Status
+            { wch: 20 },  // Lokasi
+            { wch: 22 },  // Waktu Mulai
+            { wch: 22 },  // Waktu Berakhir
+            { wch: 20 },  // Penjual
+            { wch: 20 },  // Pemenang
+            { wch: 12 },  // Jumlah Bid
+            { wch: 22 }   // Dibuat Pada
+          ];
+
+          // Style the header row
+          const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+          for (let col = range.s.c; col <= range.e.c; col++) {
+            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+            if (!ws[cellAddress]) continue;
+
+            ws[cellAddress].s = {
+              font: { bold: true, color: { rgb: "FFFFFF" } },
+              fill: { fgColor: { rgb: "3498DB" } },
+              alignment: { horizontal: "center", vertical: "center" }
+            };
+          }
+
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "Data Lelang");
+
+          const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+          res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+          res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}.xlsx"`);
+
+          return res.send(excelBuffer); case "pdf":
+          const doc = new jsPDF('l', 'mm', 'a4'); // Landscape orientation
+
+          // Add title
+          doc.setFontSize(20);
+          doc.setFont('helvetica', 'bold');
+          doc.text('LAPORAN DATA LELANG', doc.internal.pageSize.getWidth() / 2, 20, { align: 'center' });
+
+          // Add export date
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Tanggal Export: ${new Date().toLocaleDateString('id-ID', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}`, 20, 35);
+
+          doc.text(`Total Data: ${exportData.length} lelang`, 20, 45);
+
+          // Select only important columns for PDF to avoid clutter
+          const importantColumns = ['id', 'title', 'startingBid', 'currentBid', 'status', 'startTime', 'endTime'];
+
+          const pdfHeaders = importantColumns.map(formatHeader);
+          const pdfData = exportData.map(row =>
+            importantColumns.map(key => {
+              let value = row[key];
+              let formattedValue = formatValue(key, value);
+
+              // Limit title length for better display
+              if (key === 'title' && formattedValue.length > 25) {
+                formattedValue = formattedValue.substring(0, 22) + '...';
+              }
+
+              return formattedValue;
+            })
+          );
+
+          // Add table with better configuration
+          autoTable(doc, {
+            head: [pdfHeaders],
+            body: pdfData,
+            startY: 55,
+            styles: {
+              fontSize: 10,
+              cellPadding: 4,
+              valign: 'middle',
+              lineColor: [128, 128, 128],
+              lineWidth: 0.1
+            },
+            headStyles: {
+              fillColor: [52, 152, 219],
+              textColor: 255,
+              fontStyle: 'bold',
+              fontSize: 11,
+              halign: 'center'
+            },
+            bodyStyles: {
+              textColor: 50
+            },
+            alternateRowStyles: {
+              fillColor: [248, 249, 250]
+            },
+            columnStyles: {
+              0: { halign: 'center', cellWidth: 20 },   // ID
+              1: { halign: 'left', cellWidth: 60 },     // Title
+              2: { halign: 'right', cellWidth: 35 },    // Starting Bid
+              3: { halign: 'right', cellWidth: 35 },    // Current Bid
+              4: { halign: 'center', cellWidth: 25 },   // Status
+              5: { halign: 'center', cellWidth: 40 },   // Start Time
+              6: { halign: 'center', cellWidth: 40 }    // End Time
+            },
+            margin: { top: 55, left: 20, right: 20 },
+            didDrawPage: function (data) {
+              // Add page number
+              const pageCount = doc.getNumberOfPages();
+              doc.setFontSize(10);
+              doc.text(`Halaman ${data.pageNumber} dari ${pageCount}`,
+                doc.internal.pageSize.getWidth() - 40,
+                doc.internal.pageSize.getHeight() - 15);
+            }
+          });
+
+          const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+
+          res.setHeader('Content-Type', 'application/pdf');
+          res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}.pdf"`);
+
+          return res.send(pdfBuffer);
+
+        case "json":
+          res.setHeader('Content-Type', 'application/json');
+          res.setHeader('Content-Disposition', `attachment; filename="${baseFilename}.json"`);
+
+          // Prepare formatted data for JSON
+          const formattedJsonData = exportData.map(row => {
+            const formattedRow: any = {};
+            Object.entries(row).forEach(([key, value]) => {
+              const header = formatHeader(key);
+              formattedRow[header] = formatValue(key, value);
+            });
+            return formattedRow;
+          });
+
+          return res.json({
+            metadata: {
+              exportDate: new Date().toISOString(),
+              exportDateFormatted: new Date().toLocaleDateString('id-ID', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }),
+              totalRecords: exportData.length,
+              format: 'JSON',
+              source: 'E-Auction System'
+            },
+            data: formattedJsonData
+          });
+
+        default:
+          return res.status(400).json({ message: "Unsupported export format" });
+      }
     } catch (error) {
       console.error("Error exporting data:", error);
       res.status(500).json({ message: "Failed to export data" });
@@ -666,7 +995,7 @@ export function registerRoutes(app: Express): Server {
 
       const payment = await storage.createPayment(paymentData);
       console.log("Payment created successfully:", payment);
-      
+
       // Create admin notification for pending payment only
       if (payment.status === "pending") {
         await storage.createAdminNotification(
@@ -682,20 +1011,20 @@ export function registerRoutes(app: Express): Server {
           }
         );
       }
-      
+
       res.status(201).json(payment);
     } catch (error) {
       console.error("Payment creation error:", error);
-      
+
       if (error instanceof z.ZodError) {
         console.error("Zod validation errors:", error.errors);
-        return res.status(400).json({ 
-          message: "Invalid payment data", 
+        return res.status(400).json({
+          message: "Invalid payment data",
           errors: error.errors.map(e => `${e.path.join('.')}: ${e.message}`)
         });
       }
-      
-      res.status(500).json({ 
+
+      res.status(500).json({
         message: "Failed to create payment",
         error: error instanceof Error ? error.message : String(error)
       });
@@ -776,8 +1105,177 @@ export function registerRoutes(app: Express): Server {
       res.json(payment);
     } catch (error) {
       console.error(`[API] Payment verification error:`, error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to verify payment",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Admin endpoint to generate invoice for auction winner
+  app.post("/api/admin/auctions/:id/generate-invoice", async (req, res) => {
+    try {
+      if (!req.isAuthenticated() || req.user.role !== "admin") {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
+      const auctionId = parseInt(req.params.id);
+
+      if (!auctionId || isNaN(auctionId)) {
+        return res.status(400).json({ message: "Invalid auction ID" });
+      }
+
+      // Get auction details to determine winner
+      const auction = await storage.getAuction(auctionId);
+      if (!auction) {
+        return res.status(404).json({ message: "Auction not found" });
+      }
+
+      if (!auction.winnerId) {
+        return res.status(400).json({ message: "Auction has no winner yet" });
+      }
+
+      // Generate invoice for the winner
+      const invoiceDocument = await storage.generateInvoiceForWinner(auctionId, auction.winnerId);
+
+      if (!invoiceDocument) {
+        return res.status(500).json({ message: "Failed to generate invoice" });
+      }
+
+      // Get updated auction with invoice data
+      const updatedAuction = await storage.getAuction(auctionId);
+
+      res.json({
+        message: "Invoice generated successfully",
+        invoice: {
+          invoiceNumber: updatedAuction?.invoiceNumber,
+          invoiceDocument: updatedAuction?.invoiceDocument,
+          auctionId: auctionId,
+          winnerId: auction.winnerId,
+          auctionTitle: auction.title
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        message: "Failed to generate invoice",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Endpoint to download invoice document for auction winners
+  app.get("/api/auctions/:id/invoice", async (req, res) => {
+    try {
+      const auctionId = parseInt(req.params.id);
+
+      if (!auctionId || isNaN(auctionId)) {
+        return res.status(400).json({ message: "Invalid auction ID" });
+      }
+
+      // Get auction with invoice data
+      const auction = await storage.getAuction(auctionId);
+      if (!auction) {
+        return res.status(404).json({ message: "Auction not found" });
+      }
+
+      // Check if user is the winner or an admin
+      if (!req.isAuthenticated() || (auction.winnerId !== req.user.id && req.user.role !== "admin")) {
+        return res.status(403).json({ message: "Access denied. Only the winner or admin can download the invoice." });
+      }
+
+      // Check if auction has ended and has a winner
+      if (auction.status !== "ended" || !auction.winnerId) {
+        return res.status(400).json({ message: "Invoice not available. Auction must be ended with a winner." });
+      }
+
+      // Check if invoice exists
+      if (!auction.invoiceDocument || !auction.invoiceNumber) {
+        return res.status(404).json({ message: "Invoice not found. Please contact admin to generate invoice." });
+      }
+
+      // Parse base64 invoice document
+      const base64Data = auction.invoiceDocument.split(',')[1];
+      const mimeType = auction.invoiceDocument.split(',')[0].split(':')[1].split(';')[0];
+
+      let fileExtension = 'pdf';
+      let contentType = 'application/pdf';
+
+      // Check if it's PDF or HTML
+      if (mimeType.includes('html')) {
+        fileExtension = 'html';
+        contentType = 'text/html; charset=utf-8';
+        const invoiceContent = Buffer.from(base64Data, 'base64').toString('utf8');
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="Invoice-${auction.invoiceNumber}.${fileExtension}"`);
+        res.send(invoiceContent);
+      } else {
+        // Handle PDF
+        const invoiceBuffer = Buffer.from(base64Data, 'base64');
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="Invoice-${auction.invoiceNumber}.${fileExtension}"`);
+        res.send(invoiceBuffer);
+      }
+
+    } catch (error) {
+      console.error(`[API] Invoice download error:`, error);
+      res.status(500).json({
+        message: "Failed to download invoice",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Endpoint to view invoice document inline (for preview)
+  app.get("/api/auctions/:id/invoice/preview", async (req, res) => {
+    try {
+      const auctionId = parseInt(req.params.id);
+
+      if (!auctionId || isNaN(auctionId)) {
+        return res.status(400).json({ message: "Invalid auction ID" });
+      }
+
+      // Get auction with invoice data
+      const auction = await storage.getAuction(auctionId);
+      if (!auction) {
+        return res.status(404).json({ message: "Auction not found" });
+      }
+
+      // Check if user is the winner or an admin
+      if (!req.isAuthenticated() || (auction.winnerId !== req.user.id && req.user.role !== "admin")) {
+        return res.status(403).json({ message: "Access denied. Only the winner or admin can view the invoice." });
+      }
+
+      // Check if auction has ended and has a winner
+      if (auction.status !== "ended" || !auction.winnerId) {
+        return res.status(400).json({ message: "Invoice not available. Auction must be ended with a winner." });
+      }
+
+      // Check if invoice exists
+      if (!auction.invoiceDocument || !auction.invoiceNumber) {
+        return res.status(404).json({ message: "Invoice not found. Please contact admin to generate invoice." });
+      }
+
+      // Parse base64 invoice document
+      const base64Data = auction.invoiceDocument.split(',')[1];
+      const mimeType = auction.invoiceDocument.split(',')[0].split(':')[1].split(';')[0];
+
+      // Check if it's PDF or HTML
+      if (mimeType.includes('html')) {
+        const invoiceContent = Buffer.from(base64Data, 'base64').toString('utf8');
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(invoiceContent);
+      } else {
+        // Handle PDF preview - send PDF to be opened in browser
+        const invoiceBuffer = Buffer.from(base64Data, 'base64');
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="Invoice-${auction.invoiceNumber}.pdf"`);
+        res.send(invoiceBuffer);
+      }
+
+    } catch (error) {
+      console.error(`[API] Invoice preview error:`, error);
+      res.status(500).json({
+        message: "Failed to preview invoice",
         error: error instanceof Error ? error.message : String(error)
       });
     }
@@ -846,7 +1344,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       const notificationId = parseInt(req.params.id);
-      
+
       // Get the notification first to verify ownership or admin access
       const notification = await storage.getNotification(notificationId);
       if (!notification) {
@@ -855,8 +1353,12 @@ export function registerRoutes(app: Express): Server {
 
       // Allow user to mark their own notifications or admin to mark any notification
       if (notification.userId === req.user.id || req.user.role === "admin") {
-        await storage.markNotificationAsRead(notificationId, notification.userId);
-        res.json({ message: "Notification marked as read" });
+        if (notification.userId) {
+          await storage.markNotificationAsRead(notificationId, notification.userId);
+          res.json({ message: "Notification marked as read" });
+        } else {
+          res.status(400).json({ message: "Invalid notification user ID" });
+        }
       } else {
         res.status(403).json({ message: "Access denied" });
       }
@@ -887,7 +1389,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       const notificationId = parseInt(req.params.id);
-      
+
       // Get the notification first to verify ownership or admin access
       const notification = await storage.getNotification(notificationId);
       if (!notification) {

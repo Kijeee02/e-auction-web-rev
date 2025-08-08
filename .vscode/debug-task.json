@@ -1,0 +1,19 @@
+{
+    "name": "debug-server",
+    "type": "shell",
+    "command": "npm run dev",
+    "group": "build",
+    "isBackground": true,
+    "problemMatcher": {
+        "pattern": [
+            {
+                "regexp": "^(.*):(\\d+):(\\d+)\\s+-\\s+(error|warning|info)\\s+(.*)$",
+                "file": 1,
+                "line": 2,
+                "column": 3,
+                "severity": 4,
+                "message": 5
+            }
+        ]
+    }
+}

@@ -22,6 +22,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -40,12 +47,21 @@ import {
   Activity,
   TrendingUp,
   Bell,
+  MoreHorizontal,
+  Archive,
+  ArchiveRestore,
+  Download,
+  ChevronDown,
+  FileSpreadsheet,
+  File,
+  FileJson,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Auction, Payment } from "@shared/schema";
 import { useLocation, useParams } from "wouter";
 import VehicleInfoModal from "@/components/vehicle-info-modal";
 import LocationSelector from "@/components/location-selector";
+import MultipleImageUpload from "@/components/multiple-image-upload";
 
 export default function AdminPanel() {
   const { user } = useAuth();
@@ -53,6 +69,7 @@ export default function AdminPanel() {
   const [, navigate] = useLocation();
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [exportFormat, setExportFormat] = useState("csv");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<any>(null);
@@ -62,7 +79,7 @@ export default function AdminPanel() {
     condition: "",
     location: "",
     categoryId: "",
-    imageUrl: "",
+    imageUrls: [] as string[], // Changed from imageUrl to imageUrls array
     startingPrice: "",
     endTime: "",
     productionYear: "",
@@ -99,7 +116,16 @@ export default function AdminPanel() {
     },
   });
 
-  const { data: adminNotifications = [] } = useQuery({
+  type AdminNotification = {
+    id: string | number;
+    title: string;
+    message: string;
+    type: "payment" | "auction" | "system" | string;
+    isRead: boolean;
+    createdAt: string;
+  };
+
+  const { data: adminNotifications = [] } = useQuery<AdminNotification[]>({
     queryKey: ["/api/admin/notifications"],
     enabled: !!user && user.role === "admin",
     refetchInterval: 30000, // Refresh every 30 seconds
@@ -160,10 +186,17 @@ export default function AdminPanel() {
   // mutation untuk simpan lelang
   const createAuctionMutation = useMutation({
     mutationFn: async (data: any) => {
+      console.log("[MUTATION DEBUG] Sending data:", data);
       const res = await apiRequest("POST", "/api/auctions", data);
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("[MUTATION DEBUG] Server error:", errorText);
+        throw new Error(`Server error: ${res.status} - ${errorText}`);
+      }
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[MUTATION DEBUG] Success response:", data);
       setShowAddModal(false);
       setNewAuction({
         title: "",
@@ -171,7 +204,7 @@ export default function AdminPanel() {
         condition: "",
         location: "",
         categoryId: "",
-        imageUrl: "",
+        imageUrls: [],
         startingPrice: "",
         endTime: "",
         productionYear: "",
@@ -187,10 +220,11 @@ export default function AdminPanel() {
         description: "Lelang berhasil ditambahkan",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("[MUTATION DEBUG] Error:", error);
       toast({
         title: "Gagal",
-        description: "Gagal menambahkan lelang",
+        description: error.message || "Gagal menambahkan lelang",
         variant: "destructive",
       });
     },
@@ -301,7 +335,7 @@ export default function AdminPanel() {
       const res = await apiRequest("DELETE", `/api/auctions/${id}`);
       try {
         await res.json();
-      } catch {} 
+      } catch { }
       return true;
     },
     onSettled: () => {
@@ -427,6 +461,41 @@ export default function AdminPanel() {
     if (!id)
       return toast({ title: "ID Lelang tidak valid", variant: "destructive" });
     navigate(`/admin/edit-auction/${id}`);
+  };
+
+  const handleExportFilteredData = (format = exportFormat) => {
+    // Show what will be exported
+    const filteredCount = filteredAuctions.length;
+    const hasFilters = statusFilter !== "all" || searchQuery.trim();
+
+    const message = hasFilters
+      ? `Mengexport ${filteredCount} lelang yang difilter dalam format ${format.toUpperCase()}`
+      : `Mengexport ${filteredCount} lelang dalam format ${format.toUpperCase()}`;
+
+    toast({
+      title: "Export Data",
+      description: message,
+    });
+
+    // Build URL with current filter parameters
+    const params = new URLSearchParams();
+
+    if (statusFilter !== "all") {
+      params.append("status", statusFilter);
+    }
+
+    if (searchQuery.trim()) {
+      params.append("search", searchQuery.trim());
+    }
+
+    // Add parameter to indicate we want filtered data only
+    params.append("filtered", "true");
+
+    // Add format parameter
+    params.append("format", format);
+
+    const exportUrl = `/api/admin/export-data?${params.toString()}`;
+    window.open(exportUrl, '_blank');
   };
 
   const verifyPaymentMutation = useMutation({
@@ -556,15 +625,35 @@ export default function AdminPanel() {
                       <Plus className="h-4 w-4 mr-2" />
                       Tambah Lelang
                     </Button>
-                    <Button 
-                      variant="outline"
-                      onClick={() => {
-                        window.open('/api/admin/export-data', '_blank');
-                      }}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      Export Data
-                    </Button>
+
+                    {/* Export with Format Selection */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline">
+                          <Download className="h-4 w-4 mr-2" />
+                          Export Data
+                          <ChevronDown className="h-4 w-4 ml-2" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem onClick={() => handleExportFilteredData("csv")}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Export sebagai CSV
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportFilteredData("excel")}>
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          Export sebagai Excel
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportFilteredData("pdf")}>
+                          <File className="mr-2 h-4 w-4" />
+                          Export sebagai PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleExportFilteredData("json")}>
+                          <FileJson className="mr-2 h-4 w-4" />
+                          Export sebagai JSON
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   <div className="flex space-x-3">
@@ -627,8 +716,9 @@ export default function AdminPanel() {
                               <div className="flex items-center">
                                 <img
                                   src={
-                                    auction.imageUrl ||
-                                    "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"
+                                    (auction.imageUrls && auction.imageUrls.length > 0
+                                      ? auction.imageUrls[0]
+                                      : (auction.imageUrls || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"))
                                   }
                                   alt={auction.title}
                                   className="w-12 h-12 object-cover rounded-lg mr-3"
@@ -689,98 +779,106 @@ export default function AdminPanel() {
                               </span>
                             </TableCell>
                             <TableCell>
-                              <div className="flex space-x-2">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={!auction.id}
-                                  onClick={() => handleView(auction.id)}
-                                  title="Lihat Detail"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                {(auction.categoryId ===
-                                  parseInt(motorCategoryId || "0") ||
-                                  auction.categoryId ===
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    onClick={() => handleView(auction.id)}
+                                    disabled={!auction.id}
+                                  >
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Lihat Detail
+                                  </DropdownMenuItem>
+
+                                  {(auction.categoryId ===
+                                    parseInt(motorCategoryId || "0") ||
+                                    auction.categoryId ===
                                     parseInt(mobilCategoryId || "0")) && (
-                                  <VehicleInfoModal auction={auction}>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      title="View Document/Info"
+                                      <DropdownMenuItem
+                                        onClick={() => {
+                                          // For now, just show a message that this feature is available in detail view
+                                          toast({
+                                            title: "Info Kendaraan",
+                                            description: "Silakan lihat detail lelang untuk melihat informasi kendaraan",
+                                          });
+                                        }}
+                                      >
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Info Kendaraan
+                                      </DropdownMenuItem>
+                                    )}
+
+                                  <DropdownMenuItem
+                                    onClick={() => handleEdit(auction.id)}
+                                    disabled={!auction.id}
+                                  >
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Edit
+                                  </DropdownMenuItem>
+
+                                  {auction.status === "active" && (
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        auction.id &&
+                                        endAuctionMutation.mutate(auction.id)
+                                      }
+                                      disabled={
+                                        !auction.id ||
+                                        endAuctionMutation.isPending
+                                      }
                                     >
-                                      <FileText className="h-4 w-4" />
-                                    </Button>
-                                  </VehicleInfoModal>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={!auction.id}
-                                  onClick={() => handleEdit(auction.id)}
-                                  title="Edit"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                {auction.status === "active" && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    disabled={
-                                      !auction.id ||
-                                      endAuctionMutation.isPending
-                                    }
+                                      <Clock className="mr-2 h-4 w-4" />
+                                      Akhiri Lelang
+                                    </DropdownMenuItem>
+                                  )}
+
+                                  <DropdownMenuItem
                                     onClick={() =>
                                       auction.id &&
-                                      endAuctionMutation.mutate(auction.id)
+                                      archiveMutation.mutate(auction.id)
                                     }
-                                    title="End Auction"
+                                    disabled={
+                                      !auction.id || !!archiveMutation.isPending
+                                    }
                                   >
-                                    End
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={
-                                    !auction.id || archiveMutation.isPending
-                                  }
-                                  onClick={() =>
-                                    auction.id &&
-                                    archiveMutation.mutate(auction.id)
-                                  }
-                                  title="Archive"
-                                >
-                                  Archive
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={
-                                    !auction.id ||
-                                    deleteAuctionMutation.isPending ||
-                                    auction.winnerId
-                                  }
-                                  onClick={() => {
-                                    if (auction.winnerId) {
-                                      toast({
-                                        title: "Tidak dapat menghapus",
-                                        description: "Lelang yang sudah ada pemenang tidak dapat dihapus",
-                                        variant: "destructive",
-                                      });
-                                      return;
-                                    }
-                                    if (auction.id) {
-                                      if (confirm(`Hapus lelang "${auction.title}"?`)) {
-                                        deleteAuctionMutation.mutate(auction.id);
+                                    <Archive className="mr-2 h-4 w-4" />
+                                    Arsip
+                                  </DropdownMenuItem>
+
+                                  <DropdownMenuSeparator />
+
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      if (auction.winnerId) {
+                                        toast({
+                                          title: "Tidak dapat menghapus",
+                                          description: "Lelang yang sudah ada pemenang tidak dapat dihapus",
+                                          variant: "destructive",
+                                        });
+                                        return;
                                       }
+                                      if (auction.id) {
+                                        if (confirm(`Hapus lelang "${auction.title}"?`)) {
+                                          deleteAuctionMutation.mutate(auction.id);
+                                        }
+                                      }
+                                    }}
+                                    disabled={
+                                      !auction.id ||
+                                      deleteAuctionMutation.isPending ||
+                                      !!auction.winnerId
                                     }
-                                  }}
-                                  title={auction.winnerId ? "Tidak dapat menghapus lelang yang sudah ada pemenang" : "Hapus"}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
+                                    className="text-red-600 focus:text-red-600"
+                                  >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Hapus
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -1031,7 +1129,11 @@ export default function AdminPanel() {
                               <TableCell>
                                 <div className="flex items-center">
                                   <img
-                                    src={payment.auction?.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"}
+                                    src={
+                                      (payment.auction?.imageUrls && payment.auction.imageUrls.length > 0
+                                        ? payment.auction.imageUrls[0]
+                                        : (payment.auction?.imageUrl || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"))
+                                    }
                                     alt={payment.auction?.title}
                                     className="w-12 h-12 object-cover rounded-lg mr-3"
                                   />
@@ -1076,7 +1178,11 @@ export default function AdminPanel() {
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          onClick={() => window.open(payment.invoiceDocument, '_blank')}
+                                          onClick={() => {
+                                            if (payment.invoiceDocument) {
+                                              window.open(payment.invoiceDocument, '_blank');
+                                            }
+                                          }}
                                           className="text-xs h-6"
                                         >
                                           <FileText className="h-3 w-3 mr-1" />
@@ -1087,7 +1193,11 @@ export default function AdminPanel() {
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          onClick={() => window.open(payment.releaseLetterDocument, '_blank')}
+                                          onClick={() => {
+                                            if (payment.releaseLetterDocument) {
+                                              window.open(payment.releaseLetterDocument, '_blank');
+                                            }
+                                          }}
                                           className="text-xs h-6"
                                         >
                                           <FileText className="h-3 w-3 mr-1" />
@@ -1098,7 +1208,7 @@ export default function AdminPanel() {
                                         <Button
                                           size="sm"
                                           variant="outline"
-                                          onClick={() => window.open(payment.handoverDocument, '_blank')}
+                                          onClick={() => payment.handoverDocument && window.open(payment.handoverDocument, '_blank')}
                                           className="text-xs h-6"
                                         >
                                           <FileText className="h-3 w-3 mr-1" />
@@ -1145,7 +1255,7 @@ export default function AdminPanel() {
                       Kelola notifikasi sistem dan pembayaran
                     </p>
                   </div>
-                  <Button 
+                  <Button
                     variant="outline"
                     onClick={() => {
                       // Mark all notifications as read
@@ -1165,36 +1275,32 @@ export default function AdminPanel() {
                     </div>
                   ) : (
                     adminNotifications.map((notification) => (
-                      <Card 
-                        key={notification.id} 
-                        className={`border-l-4 ${
-                          !notification.isRead 
-                            ? notification.type === 'payment' 
-                              ? 'border-l-blue-500' 
-                              : notification.type === 'auction'
+                      <Card
+                        key={notification.id}
+                        className={`border-l-4 ${!notification.isRead
+                          ? notification.type === 'payment'
+                            ? 'border-l-blue-500'
+                            : notification.type === 'auction'
                               ? 'border-l-green-500'
                               : 'border-l-orange-500'
-                            : 'border-l-gray-300'
-                        }`}
+                          : 'border-l-gray-300'
+                          }`}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex items-start space-x-3">
                               <div className="flex-shrink-0">
                                 {notification.type === 'payment' && (
-                                  <DollarSign className={`h-5 w-5 mt-1 ${
-                                    !notification.isRead ? 'text-blue-500' : 'text-gray-400'
-                                  }`} />
+                                  <DollarSign className={`h-5 w-5 mt-1 ${!notification.isRead ? 'text-blue-500' : 'text-gray-400'
+                                    }`} />
                                 )}
                                 {notification.type === 'auction' && (
-                                  <Gavel className={`h-5 w-5 mt-1 ${
-                                    !notification.isRead ? 'text-green-500' : 'text-gray-400'
-                                  }`} />
+                                  <Gavel className={`h-5 w-5 mt-1 ${!notification.isRead ? 'text-green-500' : 'text-gray-400'
+                                    }`} />
                                 )}
                                 {notification.type === 'system' && (
-                                  <Users className={`h-5 w-5 mt-1 ${
-                                    !notification.isRead ? 'text-orange-500' : 'text-gray-400'
-                                  }`} />
+                                  <Users className={`h-5 w-5 mt-1 ${!notification.isRead ? 'text-orange-500' : 'text-gray-400'
+                                    }`} />
                                 )}
                               </div>
                               <div>
@@ -1212,11 +1318,11 @@ export default function AdminPanel() {
                                 </p>
                               </div>
                             </div>
-                            <Badge 
+                            <Badge
                               variant={!notification.isRead ? "secondary" : "outline"}
                               className={
-                                !notification.isRead 
-                                  ? "bg-blue-100 text-blue-800" 
+                                !notification.isRead
+                                  ? "bg-blue-100 text-blue-800"
                                   : ""
                               }
                             >
@@ -1301,8 +1407,9 @@ export default function AdminPanel() {
                               <div className="flex items-center">
                                 <img
                                   src={
-                                    auction.imageUrl ||
-                                    "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"
+                                    (auction.imageUrls && auction.imageUrls.length > 0
+                                      ? auction.imageUrls[0]
+                                      : (auction.imageUrls || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=60&h=60&fit=crop"))
                                   }
                                   alt={auction.title}
                                   className="w-12 h-12 object-cover rounded-lg mr-3"
@@ -1384,8 +1491,8 @@ export default function AdminPanel() {
                                     unarchiveMutation.mutate(auction.id)
                                   }
                                   title="Kembalikan ke Daftar Aktif"
-                                  className="text-blue-600 border-blue-300 hover:bg-blue-50"
                                 >
+                                  <ArchiveRestore className="text-blue-600 border-blue-300 hover:bg-blue-50" />
                                   Unarchive
                                 </Button>
                                 <Button
@@ -1584,18 +1691,36 @@ export default function AdminPanel() {
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div className="space-y-3">
-                        <Button 
-                          variant="outline" 
-                          className="w-full justify-start"
-                          onClick={() => {
-                            window.open('/api/admin/export-data', '_blank');
-                          }}
-                        >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Export Data Lelang
-                        </Button>
-                        <Button 
-                          variant="outline" 
+                        {/* Export Data Lelang with Format Selection */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full justify-start">
+                              <Download className="h-4 w-4 mr-2" />
+                              Export Data Lelang
+                              <ChevronDown className="h-4 w-4 ml-auto" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start" className="w-56">
+                            <DropdownMenuItem onClick={() => handleExportFilteredData("csv")}>
+                              <FileText className="mr-2 h-4 w-4" />
+                              Export sebagai CSV
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleExportFilteredData("excel")}>
+                              <FileSpreadsheet className="mr-2 h-4 w-4" />
+                              Export sebagai Excel
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleExportFilteredData("pdf")}>
+                              <File className="mr-2 h-4 w-4" />
+                              Export sebagai PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleExportFilteredData("json")}>
+                              <FileJson className="mr-2 h-4 w-4" />
+                              Export sebagai JSON
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button
+                          variant="outline"
                           className="w-full justify-start"
                           onClick={() => {
                             fetch('/api/admin/backup-database', { method: 'POST' })
@@ -1606,8 +1731,8 @@ export default function AdminPanel() {
                           <FileText className="h-4 w-4 mr-2" />
                           Backup Database
                         </Button>
-                        <Button 
-                          variant="outline" 
+                        <Button
+                          variant="outline"
                           className="w-full justify-start"
                           onClick={() => {
                             if (confirm("Yakin ingin membersihkan cache sistem?")) {
@@ -1647,8 +1772,8 @@ export default function AdminPanel() {
                           </div>
                         </div>
                       </div>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="w-full"
                         onClick={() => navigate('/admin/users')}
                       >
@@ -1685,8 +1810,8 @@ export default function AdminPanel() {
                           <span className="font-medium">Tidak tersedia</span>
                         </div>
                       </div>
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="w-full"
                         onClick={() => {
                           fetch('/api/admin/system-health')
@@ -1843,18 +1968,36 @@ export default function AdminPanel() {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
+
+                  // Debug logging
+                  console.log("[FORM DEBUG] New auction data:", newAuction);
+
+                  // Validation
+                  if (!newAuction.title || !newAuction.description || !newAuction.categoryId ||
+                    !newAuction.startingPrice || !newAuction.endTime || !newAuction.location) {
+                    toast({
+                      title: "Error",
+                      description: "Semua field yang wajib harus diisi",
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+
                   const auctionData = {
                     title: newAuction.title,
                     description: newAuction.description,
                     condition: newAuction.condition,
                     location: newAuction.location,
                     categoryId: parseInt(newAuction.categoryId),
-                    imageUrl: newAuction.imageUrl || undefined,
+                    imageUrls: newAuction.imageUrls.length > 0 ? newAuction.imageUrls : undefined,
                     startingPrice: parseFloat(newAuction.startingPrice),
                     currentPrice: parseFloat(newAuction.startingPrice),
+                    startTime: new Date(), // Add current time as start time
                     endTime: new Date(newAuction.endTime),
                     minimumIncrement: 50000,
                   };
+
+                  console.log("[FORM DEBUG] Auction data to submit:", auctionData);
 
                   // Add vehicle-specific fields for Motor dan Mobil (berdasarkan nama kategori)
                   if (
@@ -1945,40 +2088,12 @@ export default function AdminPanel() {
                     ))}
                   </select>
 
-                  {/* File Upload for Image */}
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Upload Gambar
-                    </label>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          // Create a temporary URL for preview
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            setNewAuction({
-                              ...newAuction,
-                              imageUrl: event.target?.result as string,
-                            });
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="w-full border rounded p-2"
-                    />
-                    {newAuction.imageUrl && (
-                      <div className="mt-2">
-                        <img
-                          src={newAuction.imageUrl}
-                          alt="Preview"
-                          className="w-32 h-32 object-cover rounded border"
-                        />
-                      </div>
-                    )}
-                  </div>
+                  {/* Multiple Image Upload */}
+                  <MultipleImageUpload
+                    images={newAuction.imageUrls}
+                    onChange={(images) => setNewAuction({ ...newAuction, imageUrls: images })}
+                    maxImages={5}
+                  />
 
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-gray-700">
@@ -1994,8 +2109,8 @@ export default function AdminPanel() {
                         value={
                           newAuction.startingPrice
                             ? Number(newAuction.startingPrice).toLocaleString(
-                                "id-ID",
-                              )
+                              "id-ID",
+                            )
                             : ""
                         }
                         onChange={(e) => {
@@ -2032,7 +2147,7 @@ export default function AdminPanel() {
                 {/* Right Column - Vehicle Specific Info */}
                 <div className="space-y-4">
                   {newAuction.categoryId === motorCategoryId ||
-                  newAuction.categoryId === mobilCategoryId ? (
+                    newAuction.categoryId === mobilCategoryId ? (
                     <>
                       <h3 className="font-semibold text-gray-900 border-b pb-2">
                         Informasi{" "}
@@ -2116,7 +2231,7 @@ export default function AdminPanel() {
                         condition: "",
                         location: "",
                         categoryId: "",
-                        imageUrl: "",
+                        imageUrls: [],
                         startingPrice: "",
                         endTime: "",
                         productionYear: "",

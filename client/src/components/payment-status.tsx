@@ -119,7 +119,7 @@ export default function PaymentStatus({ auctionId }: PaymentStatusProps) {
                 <strong>Catatan Admin:</strong> {payment.notes}
               </p>
             )}
-            
+
             {/* Admin Documents Section */}
             {(payment.invoiceDocument || payment.releaseLetterDocument || payment.handoverDocument) && (
               <div className="mt-4 border-t border-green-200 pt-3">
@@ -133,8 +133,9 @@ export default function PaymentStatus({ auctionId }: PaymentStatusProps) {
                       </div>
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => window.open(payment.invoiceDocument, '_blank')}
+                          onClick={() => payment.invoiceDocument && window.open(payment.invoiceDocument, '_blank')}
                           className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                          disabled={!payment.invoiceDocument}
                         >
                           Lihat
                         </button>
@@ -152,7 +153,7 @@ export default function PaymentStatus({ auctionId }: PaymentStatusProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   {payment.releaseLetterDocument && (
                     <div className="flex items-center justify-between bg-white p-2 rounded border">
                       <div className="flex items-center">
@@ -161,8 +162,9 @@ export default function PaymentStatus({ auctionId }: PaymentStatusProps) {
                       </div>
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => window.open(payment.releaseLetterDocument, '_blank')}
+                          onClick={() => payment.releaseLetterDocument && window.open(payment.releaseLetterDocument, '_blank')}
                           className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                          disabled={!payment.releaseLetterDocument}
                         >
                           Lihat
                         </button>
@@ -180,7 +182,7 @@ export default function PaymentStatus({ auctionId }: PaymentStatusProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   {payment.handoverDocument && (
                     <div className="flex items-center justify-between bg-white p-2 rounded border">
                       <div className="flex items-center">
@@ -189,8 +191,9 @@ export default function PaymentStatus({ auctionId }: PaymentStatusProps) {
                       </div>
                       <div className="flex space-x-2">
                         <button
-                          onClick={() => window.open(payment.handoverDocument, '_blank')}
+                          onClick={() => payment.handoverDocument && window.open(payment.handoverDocument, '_blank')}
                           className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700"
+                          disabled={!payment.handoverDocument}
                         >
                           Lihat
                         </button>

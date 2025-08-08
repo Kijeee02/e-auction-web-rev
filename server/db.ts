@@ -4,8 +4,8 @@ import * as schema from "@shared/schema";
 import { resolve } from 'path';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 
-// Create SQLite database file in the project root
-const dbPath = resolve(process.cwd(), 'auction.db');
+// Create SQLite database file in the database folder
+const dbPath = resolve(process.cwd(), 'database', 'auction.db');
 const sqlite = new Database(dbPath);
 
 export const db = drizzle(sqlite, { schema });
@@ -37,10 +37,25 @@ export function initializeDatabase() {
     // Check if avatar column exists, if not add it
     const columns = sqlite.prepare("PRAGMA table_info(users)").all() as { name: string }[];
     const hasAvatarColumn = columns.some(col => col.name === 'avatar');
-    
+
     if (!hasAvatarColumn) {
       sqlite.exec(`ALTER TABLE users ADD COLUMN avatar TEXT;`);
       console.log('✓ Added avatar column to users table');
+    }
+
+    // Check and add new payment columns if they don't exist
+    const paymentColumns = sqlite.prepare("PRAGMA table_info(payments)").all() as { name: string }[];
+    const hasInvoiceNumber = paymentColumns.some(col => col.name === 'invoice_number');
+    const hasUpdatedAt = paymentColumns.some(col => col.name === 'updated_at');
+
+    if (!hasInvoiceNumber) {
+      sqlite.exec(`ALTER TABLE payments ADD COLUMN invoice_number TEXT;`);
+      console.log('✓ Added invoice_number column to payments table');
+    }
+
+    if (!hasUpdatedAt) {
+      sqlite.exec(`ALTER TABLE payments ADD COLUMN updated_at INTEGER;`);
+      console.log('✓ Added updated_at column to payments table');
     }
 
     sqlite.exec(`
@@ -61,7 +76,7 @@ export function initializeDatabase() {
           minimum_increment REAL NOT NULL DEFAULT 50000,
           condition TEXT NOT NULL,
           location TEXT NOT NULL,
-          image_url TEXT,
+          image_urls TEXT, -- JSON array of image URLs
           status TEXT NOT NULL DEFAULT 'active',
           start_time INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
           end_time INTEGER NOT NULL,
@@ -73,6 +88,8 @@ export function initializeDatabase() {
           chassis_number TEXT,
           engine_number TEXT,
           document_info TEXT,
+          invoice_document TEXT, -- Invoice document for winner
+          invoice_number TEXT, -- Invoice number for winner  
           created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
       );
       CREATE TABLE IF NOT EXISTS bids (
@@ -121,6 +138,57 @@ export function initializeDatabase() {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Migration: Convert image_url to image_urls JSON array
+    try {
+      // Check if migration is needed (old column exists)
+      const tableInfo = sqlite.prepare("PRAGMA table_info(auctions)").all() as any[];
+      const hasOldColumn = tableInfo.some(col => col.name === 'image_url');
+      const hasNewColumn = tableInfo.some(col => col.name === 'image_urls');
+
+      if (hasOldColumn && !hasNewColumn) {
+        console.log('Running migration: Converting image_url to image_urls...');
+
+        // Add new column
+        sqlite.exec('ALTER TABLE auctions ADD COLUMN image_urls TEXT');
+
+        // Migrate existing data
+        sqlite.exec(`
+          UPDATE auctions 
+          SET image_urls = CASE 
+              WHEN image_url IS NOT NULL AND image_url != '' THEN '["' || replace(image_url, '"', '\\"') || '"]'
+              ELSE NULL
+          END
+        `);
+
+        // Note: SQLite doesn't support DROP COLUMN until version 3.35.0
+        // For compatibility, we'll just ignore the old column
+        console.log('✓ Migration completed: image_url -> image_urls');
+      }
+    } catch (error) {
+      console.warn('Migration warning:', error);
+    }
+
+    // Migration: Add invoice fields if they don't exist
+    try {
+      const tableInfo = sqlite.prepare("PRAGMA table_info(auctions)").all() as any[];
+      const hasInvoiceDoc = tableInfo.some(col => col.name === 'invoice_document');
+      const hasInvoiceNum = tableInfo.some(col => col.name === 'invoice_number');
+
+      if (!hasInvoiceDoc) {
+        console.log('Adding invoice_document column to auctions table...');
+        sqlite.exec('ALTER TABLE auctions ADD COLUMN invoice_document TEXT');
+        console.log('✓ Added invoice_document column');
+      }
+
+      if (!hasInvoiceNum) {
+        console.log('Adding invoice_number column to auctions table...');
+        sqlite.exec('ALTER TABLE auctions ADD COLUMN invoice_number TEXT');
+        console.log('✓ Added invoice_number column');
+      }
+    } catch (error) {
+      console.warn('Invoice fields migration warning:', error);
+    }
 
     // Jangan hapus data production!
     // Jika ingin seed data kategori, lakukan hanya jika tabel kosong
