@@ -20,7 +20,7 @@ import {
   type InsertCategory,
   type InsertPayment,
   type InsertNotification,
-} from "../shared/schema.js";
+} from "@shared/schema";
 
 // Helper functions for image handling
 function serializeImages(images: string[] | undefined): string | undefined {
